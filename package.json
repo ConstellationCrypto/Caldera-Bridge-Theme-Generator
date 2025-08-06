@@ -1,7 +1,7 @@
 {
-    "name": "Bridge Theme Generator",
+    "name": "Caldera-Bridge-Theme-Generator",
     "version": "1.0.0",
-    "description": "Bridge Theme Generator for Figma",
+    "description": "Caldera Bridge Theme Generator for Figma",
     "scripts": {
         "build": "esbuild src/code.ts --bundle --outfile=dist/code.js --format=iife --target=es2017",
         "watch": "esbuild src/code.ts --bundle --outfile=dist/code.js --format=iife --target=es2017 --watch"
