@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Permissions-Policy" content="camera=(), microphone=(), clipboard-write=(), display-capture=()">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      padding: 20px;
+      background: #ffffff;
+    }
+    
+    h1 {
+      font-size: 18px;
+      margin-bottom: 20px;
+      color: #1a1a1a;
+    }
+    
+    .input-group {
+      margin-bottom: 16px;
+    }
+    
+    label {
+      display: block;
+      font-size: 12px;
+      margin-bottom: 4px;
+      color: #666;
+      font-weight: 500;
+    }
+    
+    input[type="text"], input[type="color"] {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #e0e0e0;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+    
+    .color-input-wrapper {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    
+    input[type="color"] {
+      width: 40px;
+      height: 40px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    
+    input[type="text"] {
+      flex: 1;
+    }
+    
+    .preview {
+      margin: 20px 0;
+      padding: 16px;
+      background: #f5f5f5;
+      border-radius: 8px;
+    }
+    
+    .preview-title {
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      color: #666;
+    }
+    
+    .color-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+      gap: 8px;
+    }
+    
+    .color-tile {
+      height: 40px;
+      border-radius: 4px;
+      border: 1px solid #e0e0e0;
+      position: relative;
+    }
+    
+    .color-label {
+      position: absolute;
+      bottom: 2px;
+      left: 4px;
+      font-size: 10px;
+      background: rgba(255,255,255,0.9);
+      padding: 0 2px;
+      border-radius: 2px;
+    }
+    
+    .button-group {
+      display: flex;
+      gap: 8px;
+      margin-top: 20px;
+    }
+    
+    button {
+      flex: 1;
+      padding: 10px;
+      border: none;
+      border-radius: 4px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    
+    .primary {
+      background: #0066ff;
+      color: white;
+    }
+    
+    .primary:hover {
+      background: #0052cc;
+    }
+    
+    .secondary {
+      background: #f0f0f0;
+      color: #333;
+    }
+    
+    .secondary:hover {
+      background: #e0e0e0;
+    }
+  </style>
+</head>
+<body>
+  <h1>HCT Design System Generator</h1>
+  
+  <div class="input-group">
+    <label>Primary Color</label>
+    <div class="color-input-wrapper">
+      <input type="color" id="primary-color" value="#0066ff">
+      <input type="text" id="primary-hex" value="#0066ff" placeholder="#0066ff">
+    </div>
+  </div>
+  
+  <div class="input-group">
+    <label>Neutral Color</label>
+    <div class="color-input-wrapper">
+      <input type="color" id="neutral-color" value="#666666">
+      <input type="text" id="neutral-hex" value="#666666" placeholder="#666666">
+    </div>
+  </div>
+  
+  <div class="input-group">
+    <label>Secondary Color (Optional)</label>
+    <div class="color-input-wrapper">
+      <input type="color" id="secondary-color" value="#00aa66">
+      <input type="text" id="secondary-hex" value="#00aa66" placeholder="#00aa66">
+    </div>
+  </div>
+  
+  <div class="preview">
+    <div class="preview-title">Preview</div>
+    <div id="preview-content">
+      <!-- Dynamic preview will be inserted here -->
+    </div>
+  </div>
+  
+  <div class="button-group">
+    <button class="secondary" id="cancel">Cancel</button>
+    <button class="primary" id="generate">Generate Variables</button>
+  </div>
+  
+  <script>
+    // Sync color inputs
+    document.getElementById('primary-color').addEventListener('input', (e) => {
+      document.getElementById('primary-hex').value = e.target.value;
+      updatePreview();
+    });
+    
+    document.getElementById('primary-hex').addEventListener('input', (e) => {
+      document.getElementById('primary-color').value = e.target.value;
+      updatePreview();
+    });
+    
+    document.getElementById('neutral-color').addEventListener('input', (e) => {
+      document.getElementById('neutral-hex').value = e.target.value;
+      updatePreview();
+    });
+    
+    document.getElementById('neutral-hex').addEventListener('input', (e) => {
+      document.getElementById('neutral-color').value = e.target.value;
+      updatePreview();
+    });
+    
+    document.getElementById('secondary-color').addEventListener('input', (e) => {
+      document.getElementById('secondary-hex').value = e.target.value;
+      updatePreview();
+    });
+    
+    document.getElementById('secondary-hex').addEventListener('input', (e) => {
+      document.getElementById('secondary-color').value = e.target.value;
+      updatePreview();
+    });
+    
+    // Validate hex color format
+    function isValidHex(hex) {
+      return /^#[0-9A-F]{6}$/i.test(hex);
+    }
+    
+    // Generate button
+    document.getElementById('generate').onclick = () => {
+      const primaryHex = document.getElementById('primary-hex').value;
+      const neutralHex = document.getElementById('neutral-hex').value;
+      const secondaryHex = document.getElementById('secondary-hex').value;
+      
+      // Validate colors before sending
+      if (!isValidHex(primaryHex)) {
+        alert('Please enter a valid primary color (e.g., #0066ff)');
+        return;
+      }
+      if (!isValidHex(neutralHex)) {
+        alert('Please enter a valid neutral color (e.g., #666666)');
+        return;
+      }
+      if (secondaryHex && !isValidHex(secondaryHex)) {
+        alert('Please enter a valid secondary color (e.g., #00aa66)');
+        return;
+      }
+      
+      parent.postMessage({
+        pluginMessage: {
+          type: 'generate-colors',
+          primaryHex: primaryHex,
+          neutralHex: neutralHex,
+          secondaryHex: secondaryHex
+        }
+      }, '*');
+    };
+    
+    // Cancel button
+    document.getElementById('cancel').onclick = () => {
+      parent.postMessage({
+        pluginMessage: { type: 'cancel' }
+      }, '*');
+    };
+    
+    // Update preview function
+    function updatePreview() {
+      // This would show a preview of the generated colors
+      // You'd implement the HCT conversion logic here for preview
+    }
+    
+    // Initial preview
+    updatePreview();
+  </script>
+</body>
+</html>
