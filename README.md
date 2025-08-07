@@ -12,9 +12,44 @@ HCT is a color space that Google has produced to help them build dynamically cha
 - Devive color roles from HCT Palatte
 - Export color roles and palatte to a json file.
 
+
+## Installation
+
+### Prerequisites
+- Node.js (version 14 or higher)
+- npm
+- Figma desktop app
+
+### Development Setup
+1. Clone this repository:
+   ```bash
+   git clone <repository-url>
+   cd Birdge\ Theme\ Creator
+   ```
+
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+3. Build the plugin:
+   ```bash
+   npm run build
+   ```
+
+### Installing in Figma
+1. Open the Figma desktop app
+2. Go to **Plugins** → **Development** → **Import plugin from manifest...**
+3. Navigate to this project folder and select the `manifest.json` file
+4. The plugin will now appear in your **Plugins** → **Development** menu
+
+### Development Mode
+For active development, you can use the watch mode to automatically rebuild when files change:
+```bash
+npm run watch
 ```
-npm run build
-```
+
+After making changes, refresh the plugin in Figma by going to **Plugins** → **Development** → **Hot reload plugin**.
 
 ## Color Palette
 

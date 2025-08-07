@@ -165,34 +165,25 @@ function hexToFigmaColor(hex: string, alpha: number = 1): RGBA | RGB {
   };
 }
 
-// Create Base collection with tonal palettes
+// Create Base collection with tonal palettes (update in place to preserve links)
 async function createBaseCollection(colors: DesignSystemColors, primaryHex: string, neutralBaseHex: string, overrides: ColorOverrides = {}) {
-  // Check if collection exists and delete it
-  const existingCollections = figma.variables.getLocalVariableCollections();
-  for (const collection of existingCollections) {
-    if (collection.name === "Base") {
-      collection.remove();
-    }
+  // Find or create Base collection
+  let baseCollection = figma.variables.getLocalVariableCollections().find(c => c.name === "Base");
+  if (!baseCollection) {
+    baseCollection = figma.variables.createVariableCollection("Base");
   }
-  
-  // Create Base collection with single mode
-  const baseCollection = figma.variables.createVariableCollection("Base");
   const modeId = baseCollection.modes[0].modeId;
-  
-  // Rename the default mode to "Caldera"
+  // Ensure mode is named Caldera
   baseCollection.renameMode(modeId, "Caldera");
-  
-  // Helper to create a color variable
+
+  // Helper to create or update a COLOR variable by name
   function createColorVariable(path: string, hex: string, alpha: number = 1): Variable {
-    const variable = figma.variables.createVariable(
-      path,
-      baseCollection,
-      "COLOR"
-    );
-    
+    const existing = baseCollection.variableIds
+      .map(id => figma.variables.getVariableById(id))
+      .find(v => v && v.name === path);
+    const variable = existing || figma.variables.createVariable(path, baseCollection, "COLOR");
     const color = hexToFigmaColor(hex, alpha);
     variable.setValueForMode(modeId, color);
-    
     return variable;
   }
   
@@ -307,7 +298,7 @@ async function createBaseCollection(colors: DesignSystemColors, primaryHex: stri
     createColorVariable(`Colors/Black/${alpha}`, '#000000', alpha / 100);
   }
   
-  // Create Corners variables (updated values)
+  // Create/Update Corners variables
   const corners = {
     '2': 2,
     '4': 4,
@@ -319,19 +310,17 @@ async function createBaseCollection(colors: DesignSystemColors, primaryHex: stri
     '96': 96,
     'None': 0,
     'Circle': 9999
-  };
-  
+  } as Record<string, number>;
   for (const [name, value] of Object.entries(corners)) {
-    const cornerVar = figma.variables.createVariable(
-      `Corners/${name}`,
-      baseCollection,
-      "FLOAT"
-    );
+    const existing = baseCollection.variableIds
+      .map(id => figma.variables.getVariableById(id))
+      .find(v => v && v.name === `Corners/${name}`);
+    const cornerVar = existing || figma.variables.createVariable(`Corners/${name}`, baseCollection, "FLOAT");
     cornerVar.setValueForMode(modeId, value);
     cornerVar.scopes = ['CORNER_RADIUS'];
   }
   
-  // Create Spacing variables (extended range)
+  // Create/Update Spacing variables (extended range)
   const spacing = {
     '0': 0,
     '1': 8,
@@ -351,32 +340,28 @@ async function createBaseCollection(colors: DesignSystemColors, primaryHex: stri
     '-1-4': -2,
     '1-4': 2,
     '1-2': 4
-  };
-  
+  } as Record<string, number>;
   for (const [name, value] of Object.entries(spacing)) {
-    const spacingVar = figma.variables.createVariable(
-      `Spacing/${name}`,
-      baseCollection,
-      "FLOAT"
-    );
+    const existing = baseCollection.variableIds
+      .map(id => figma.variables.getVariableById(id))
+      .find(v => v && v.name === `Spacing/${name}`);
+    const spacingVar = existing || figma.variables.createVariable(`Spacing/${name}`, baseCollection, "FLOAT");
     spacingVar.setValueForMode(modeId, value);
     spacingVar.scopes = name.startsWith('-') ? ['ALL_SCOPES'] : ['WIDTH_HEIGHT', 'GAP'];
   }
   
-  // Create Typography variables
+  // Create/Update Typography variables (keep existing names to preserve links)
   const typography = {
-    'Display': 'PP Neue Corp',
-    'Header': 'KMR Apparat',
-    'Primary': 'KMR Apparat',
-    'Data': 'Martian Mono'
-  };
-  
+    'Display': 'Inter',
+    'Header': 'Inter',
+    'Primary': 'Inter',
+    'Data': 'Space Mono'
+  } as Record<string, string>;
   for (const [name, value] of Object.entries(typography)) {
-    const typographyVar = figma.variables.createVariable(
-      `Typography/${name}`,
-      baseCollection,
-      "STRING"
-    );
+    const existing = baseCollection.variableIds
+      .map(id => figma.variables.getVariableById(id))
+      .find(v => v && v.name === `Typography/${name}`);
+    const typographyVar = existing || figma.variables.createVariable(`Typography/${name}`, baseCollection, "STRING");
     typographyVar.setValueForMode(modeId, value);
     typographyVar.scopes = ['TEXT_CONTENT', 'FONT_FAMILY'];
   }
@@ -546,77 +531,110 @@ function exportThemeAsJson() {
   try {
     const collections = figma.variables.getLocalVariableCollections();
     const baseCollection = collections.find(c => c.name === 'Base');
+    const themeCollection = collections.find(c => c.name === 'Theme');
     
     if (!baseCollection) {
       figma.notify('No Base collection found. Please generate a theme first.', { error: true });
       return;
     }
     
-    // Get all variables from the Base collection
-    const variables = baseCollection.variableIds.map(id => figma.variables.getVariableById(id)).filter(Boolean);
-    
-    // Organize variables by category
-    const exportData = {
+    // Prepare export structure
+    const exportData: any = {
       Base: {
         modes: {
           Caldera: {
-            Colors: {}
+            Colors: {},
+            Typography: {},
+            Spacing: {},
+            Corners: {}
           }
         }
       }
     };
     
-    // Process each variable
-    for (const variable of variables) {
-      if (!variable) continue;
+    const baseModeId = baseCollection.modes[0].modeId;
+    const baseVariables = baseCollection.variableIds.map(id => figma.variables.getVariableById(id)).filter(Boolean) as Variable[];
+    
+    const toHex = (r: number, g: number, b: number) => `#${r.toString(16).padStart(2,'0')}${g.toString(16).padStart(2,'0')}${b.toString(16).padStart(2,'0')}`;
+    const toRgbaString = (r: number, g: number, b: number, a: number) => `rgba(${r}, ${g}, ${b}, ${Number(a.toFixed(2))})`;
+    
+    // Export Base: Colors, Typography, Spacing, Corners
+    for (const v of baseVariables) {
+      const parts = v.name.split('/');
+      const root = parts[0];
+      const modeValue = (v.valuesByMode as any)[baseModeId];
+      if (!modeValue && modeValue !== 0) continue;
       
-      const nameParts = variable.name.split('/');
-      if (nameParts[0] !== 'Colors') continue;
-      
-      // Get the color value for the default mode
-      const modeId = baseCollection.modes[0].modeId;
-      const value = variable.valuesByMode[modeId];
-      
-      let colorValue: string;
-      if (typeof value === 'object' && 'r' in value) {
-        // Convert RGB to hex
-        const r = Math.round(value.r * 255);
-        const g = Math.round(value.g * 255);
-        const b = Math.round(value.b * 255);
-        colorValue = `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
-      } else {
-        continue; // Skip non-color values
-      }
-      
-      // Build the nested structure
-      let current = exportData.Base.modes.Caldera.Colors;
-      for (let i = 1; i < nameParts.length - 1; i++) {
-        const part = nameParts[i];
-        if (!current[part]) {
-          current[part] = {};
+      if (root === 'Colors') {
+        if (typeof modeValue === 'object' && 'r' in modeValue) {
+          const r = Math.round(modeValue.r * 255);
+          const g = Math.round(modeValue.g * 255);
+          const b = Math.round(modeValue.b * 255);
+          const a = 'a' in modeValue ? (modeValue as RGBA).a : 1;
+          const valueStr = a < 1 ? toRgbaString(r,g,b,a) : toHex(r,g,b);
+          
+          let current = exportData.Base.modes.Caldera.Colors;
+          for (let i = 1; i < parts.length - 1; i++) {
+            const p = parts[i];
+            if (!current[p]) current[p] = {};
+            current = current[p];
+          }
+          const key = parts[parts.length - 1];
+          current[key] = { $scopes: ["ALL_SCOPES"], $type: "color", $value: valueStr };
         }
-        current = current[part];
+      } else if (root === 'Typography') {
+        exportData.Base.modes.Caldera.Typography[parts[1]] = {
+          $scopes: ["TEXT_CONTENT", "FONT_FAMILY"],
+          $type: "string",
+          $value: modeValue
+        };
+      } else if (root === 'Spacing') {
+        exportData.Base.modes.Caldera.Spacing[parts[1]] = {
+          $scopes: parts[1].startsWith('-') ? ["ALL_SCOPES"] : ["WIDTH_HEIGHT", "GAP"],
+          $type: "number",
+          $value: modeValue
+        };
+      } else if (root === 'Corners') {
+        exportData.Base.modes.Caldera.Corners[parts[1]] = {
+          $scopes: ["ALL_SCOPES"],
+          $type: "number",
+          $value: modeValue
+        };
       }
-      
-      // Add the final value
-      const finalKey = nameParts[nameParts.length - 1];
-      current[finalKey] = {
-        "$scopes": ["ALL_SCOPES"],
-        "$type": "color",
-        "$value": colorValue
-      };
     }
     
-    // Convert to JSON string with proper formatting
+    // Export Theme modes as references to Base
+    if (themeCollection) {
+      exportData.Theme = { modes: {} };
+      for (const mode of themeCollection.modes) {
+        const themeVars = themeCollection.variableIds.map(id => figma.variables.getVariableById(id)).filter(Boolean) as Variable[];
+        const themeModeId = mode.modeId;
+        const modeBucket: any = {};
+        
+        for (const tv of themeVars) {
+          const val = (tv.valuesByMode as any)[themeModeId];
+          if (!(val && typeof val === 'object' && 'type' in val && (val as any).type === 'VARIABLE_ALIAS')) continue;
+          const refId = (val as any).id;
+          const refVar = figma.variables.getVariableById(refId);
+          if (!refVar) continue;
+          const refPath = `{${refVar.name.replace(/\//g, '.')}}`;
+          
+          const tParts = tv.name.split('/');
+          let current = modeBucket;
+          for (let i = 0; i < tParts.length - 1; i++) {
+            const p = tParts[i];
+            if (!current[p]) current[p] = {};
+            current = current[p];
+          }
+          const key = tParts[tParts.length - 1];
+          current[key] = { $libraryName: "", $collectionName: "Base", $value: refPath };
+        }
+        exportData.Theme.modes[mode.name] = modeBucket;
+      }
+    }
+    
     const jsonString = JSON.stringify([exportData], null, 2);
-    
-    // Send the JSON data to the UI for download
-    figma.ui.postMessage({
-      type: 'export-data',
-      jsonData: jsonString,
-      filename: 'theme-export.json'
-    });
-    
+    figma.ui.postMessage({ type: 'export-data', jsonData: jsonString, filename: 'theme-export.json' });
   } catch (e) {
     console.error('Failed to export theme:', e);
     figma.notify('Failed to export theme. Please try again.', { error: true });
