@@ -27,7 +27,7 @@ With the Primary base color we then break down the palette using HCT tones. From
 
 ### Neutral Palette
 
-We derive the neutral color by taking the HSL of the selected brand color and lowering the saturation (The “S” in HSL) to 2.  From there we apply the same techinqie to get the shades has we did you the primary color palette. Difference is here that we need a few more shade options between. 91-94, 96-99 so we get more shades 
+We derive the neutral color by taking the HSL of the selected brand color and lowering the saturation (The "S" in HSL) to 5%.  From there we apply the same techinqie to get the shades has we did you the primary color palette. Difference is here that we need a few more shade options between. 91-94, 96-99 so we get more shades 
 
 Neutral shades are broken down just by its light value in the HSL 
 

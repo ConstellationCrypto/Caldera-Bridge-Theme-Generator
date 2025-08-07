@@ -15,6 +15,8 @@
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       padding: 20px;
       background: #ffffff;
+      height: 600px;
+      overflow-y: auto;
     }
     
     h1 {
@@ -23,95 +25,83 @@
       color: #1a1a1a;
     }
     
+    h2 {
+      font-size: 14px;
+      margin-top: 24px;
+      margin-bottom: 12px;
+      color: #333;
+      border-bottom: 1px solid #e0e0e0;
+      padding-bottom: 4px;
+    }
+    
     .input-group {
       margin-bottom: 16px;
     }
     
     label {
       display: block;
-      font-size: 12px;
-      margin-bottom: 4px;
-      color: #666;
+      font-size: 14px;
+      margin-bottom: 6px;
+      color: #333;
       font-weight: 500;
+    }
+    
+    .required::after {
+      content: " *";
+      color: #ff4444;
+    }
+    
+    .optional {
+      color: #999;
+      font-weight: normal;
     }
     
     input[type="text"], input[type="color"] {
       width: 100%;
-      padding: 8px;
+      padding: 10px;
       border: 1px solid #e0e0e0;
-      border-radius: 4px;
+      border-radius: 6px;
       font-size: 14px;
     }
     
     .color-input-wrapper {
       display: flex;
-      gap: 8px;
+      gap: 10px;
       align-items: center;
     }
     
     input[type="color"] {
-      width: 40px;
-      height: 40px;
-      border-radius: 4px;
+      width: 50px;
+      height: 42px;
+      border-radius: 6px;
       cursor: pointer;
+      border: 1px solid #e0e0e0;
     }
     
     input[type="text"] {
       flex: 1;
     }
     
-    .preview {
-      margin: 20px 0;
-      padding: 16px;
-      background: #f5f5f5;
-      border-radius: 8px;
-    }
-    
-    .preview-title {
-      font-size: 12px;
-      font-weight: 600;
-      margin-bottom: 12px;
-      color: #666;
-    }
-    
-    .color-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
-      gap: 8px;
-    }
-    
-    .color-tile {
-      height: 40px;
-      border-radius: 4px;
-      border: 1px solid #e0e0e0;
-      position: relative;
-    }
-    
-    .color-label {
-      position: absolute;
-      bottom: 2px;
-      left: 4px;
-      font-size: 10px;
-      background: rgba(255,255,255,0.9);
-      padding: 0 2px;
-      border-radius: 2px;
-    }
-    
     .button-group {
       display: flex;
-      gap: 8px;
-      margin-top: 20px;
+      gap: 12px;
+      margin-top: 32px;
+      position: sticky;
+      bottom: 0;
+      background: white;
+      padding: 12px 0;
+      border-top: 1px solid #e0e0e0;
     }
     
     button {
       flex: 1;
-      padding: 10px;
+      padding: 12px 24px;
       border: none;
-      border-radius: 4px;
+      border-radius: 6px;
       font-size: 14px;
       font-weight: 500;
       cursor: pointer;
-      transition: background 0.2s;
+      transition: all 0.2s ease;
     }
     
     .primary {
@@ -121,87 +111,144 @@
     
     .primary:hover {
       background: #0052cc;
+      transform: translateY(-1px);
     }
     
     .secondary {
-      background: #f0f0f0;
+      background: #f5f5f5;
       color: #333;
+      border: 1px solid #e0e0e0;
     }
     
     .secondary:hover {
-      background: #e0e0e0;
+      background: #e8e8e8;
+    }
+    
+    .info-box {
+      background: #f0f6ff;
+      border: 1px solid #b3d4ff;
+      border-radius: 6px;
+      padding: 16px;
+      font-size: 13px;
+      color: #0052cc;
+      margin-bottom: 24px;
+      line-height: 1.4;
+    }
+    
+    .description {
+      font-size: 12px;
+      color: #666;
+      margin-top: 6px;
+      line-height: 1.3;
     }
   </style>
 </head>
 <body>
-  <h1>HCT Design System Generator</h1>
+  <h1>Bridge Theme Generator</h1>
+  
+  <div class="info-box">
+    Generate a complete design system from a primary color. Optionally override neutral and status colors for more control.
+  </div>
   
   <div class="input-group">
-    <label>Primary Color</label>
+    <label class="required">Primary Color</label>
     <div class="color-input-wrapper">
       <input type="color" id="primary-color" value="#0066ff">
       <input type="text" id="primary-hex" value="#0066ff" placeholder="#0066ff">
     </div>
+    <div class="description">
+      Your brand's primary color. This will be used exactly as specified.
+    </div>
   </div>
   
+  <h2>Optional Overrides</h2>
+  
   <div class="input-group">
-    <label>Neutral Color</label>
+    <label>Neutral Color <span class="optional">(optional)</span></label>
     <div class="color-input-wrapper">
       <input type="color" id="neutral-color" value="#666666">
-      <input type="text" id="neutral-hex" value="#666666" placeholder="#666666">
+      <input type="text" id="neutral-hex" value="" placeholder="Auto-generated from primary">
+    </div>
+    <div class="description">
+      Override the auto-generated neutral palette base color.
     </div>
   </div>
   
   <div class="input-group">
-    <label>Secondary Color (Optional)</label>
+    <label>Success Color <span class="optional">(optional)</span></label>
     <div class="color-input-wrapper">
-      <input type="color" id="secondary-color" value="#00aa66">
-      <input type="text" id="secondary-hex" value="#00aa66" placeholder="#00aa66">
+      <input type="color" id="success-color" value="#22c55e">
+      <input type="text" id="success-hex" value="" placeholder="#22c55e">
+    </div>
+    <div class="description">
+      Override the default success/positive color.
     </div>
   </div>
   
-  <div class="preview">
-    <div class="preview-title">Preview</div>
-    <div id="preview-content">
-      <!-- Dynamic preview will be inserted here -->
+  <div class="input-group">
+    <label>Warning Color <span class="optional">(optional)</span></label>
+    <div class="color-input-wrapper">
+      <input type="color" id="warning-color" value="#f59e0b">
+      <input type="text" id="warning-hex" value="" placeholder="#f59e0b">
+    </div>
+    <div class="description">
+      Override the default warning/caution color.
+    </div>
+  </div>
+  
+  <div class="input-group">
+    <label>Info Color <span class="optional">(optional)</span></label>
+    <div class="color-input-wrapper">
+      <input type="color" id="info-color" value="#3b82f6">
+      <input type="text" id="info-hex" value="" placeholder="#3b82f6">
+    </div>
+    <div class="description">
+      Override the default info/neutral status color.
+    </div>
+  </div>
+  
+  <div class="input-group">
+    <label>Error Color <span class="optional">(optional)</span></label>
+    <div class="color-input-wrapper">
+      <input type="color" id="error-color" value="#ef4444">
+      <input type="text" id="error-hex" value="" placeholder="#ef4444">
+    </div>
+    <div class="description">
+      Override the default error/failure color.
     </div>
   </div>
   
   <div class="button-group">
     <button class="secondary" id="cancel">Cancel</button>
-    <button class="primary" id="generate">Generate Variables</button>
+    <button class="primary" id="generate">Generate Theme</button>
   </div>
   
   <script>
+    // Color input pairs
+    const colorPairs = [
+      { color: 'primary-color', hex: 'primary-hex' },
+      { color: 'neutral-color', hex: 'neutral-hex' },
+      { color: 'success-color', hex: 'success-hex' },
+      { color: 'warning-color', hex: 'warning-hex' },
+      { color: 'info-color', hex: 'info-hex' },
+      { color: 'error-color', hex: 'error-hex' }
+    ];
+    
     // Sync color inputs
-    document.getElementById('primary-color').addEventListener('input', (e) => {
-      document.getElementById('primary-hex').value = e.target.value;
-      updatePreview();
-    });
-    
-    document.getElementById('primary-hex').addEventListener('input', (e) => {
-      document.getElementById('primary-color').value = e.target.value;
-      updatePreview();
-    });
-    
-    document.getElementById('neutral-color').addEventListener('input', (e) => {
-      document.getElementById('neutral-hex').value = e.target.value;
-      updatePreview();
-    });
-    
-    document.getElementById('neutral-hex').addEventListener('input', (e) => {
-      document.getElementById('neutral-color').value = e.target.value;
-      updatePreview();
-    });
-    
-    document.getElementById('secondary-color').addEventListener('input', (e) => {
-      document.getElementById('secondary-hex').value = e.target.value;
-      updatePreview();
-    });
-    
-    document.getElementById('secondary-hex').addEventListener('input', (e) => {
-      document.getElementById('secondary-color').value = e.target.value;
-      updatePreview();
+    colorPairs.forEach(pair => {
+      const colorInput = document.getElementById(pair.color);
+      const hexInput = document.getElementById(pair.hex);
+      
+      colorInput.addEventListener('input', (e) => {
+        hexInput.value = e.target.value;
+      });
+      
+      hexInput.addEventListener('input', (e) => {
+        const value = e.target.value;
+        if (value && isValidHex(value)) {
+          colorInput.value = value;
+        }
+      });
     });
     
     // Validate hex color format
@@ -212,29 +259,45 @@
     // Generate button
     document.getElementById('generate').onclick = () => {
       const primaryHex = document.getElementById('primary-hex').value;
-      const neutralHex = document.getElementById('neutral-hex').value;
-      const secondaryHex = document.getElementById('secondary-hex').value;
       
-      // Validate colors before sending
+      // Validate primary color
       if (!isValidHex(primaryHex)) {
         alert('Please enter a valid primary color (e.g., #0066ff)');
         return;
       }
-      if (!isValidHex(neutralHex)) {
-        alert('Please enter a valid neutral color (e.g., #666666)');
-        return;
-      }
-      if (secondaryHex && !isValidHex(secondaryHex)) {
-        alert('Please enter a valid secondary color (e.g., #00aa66)');
-        return;
+      
+      // Get optional colors
+      const neutralHex = document.getElementById('neutral-hex').value;
+      const successHex = document.getElementById('success-hex').value;
+      const warningHex = document.getElementById('warning-hex').value;
+      const infoHex = document.getElementById('info-hex').value;
+      const errorHex = document.getElementById('error-hex').value;
+      
+      // Validate optional colors if provided
+      const optionalColors = [
+        { name: 'neutral', value: neutralHex },
+        { name: 'success', value: successHex },
+        { name: 'warning', value: warningHex },
+        { name: 'info', value: infoHex },
+        { name: 'error', value: errorHex }
+      ];
+      
+      for (const color of optionalColors) {
+        if (color.value && !isValidHex(color.value)) {
+          alert(`Please enter a valid ${color.name} color or leave it empty`);
+          return;
+        }
       }
       
       parent.postMessage({
         pluginMessage: {
           type: 'generate-colors',
           primaryHex: primaryHex,
-          neutralHex: neutralHex,
-          secondaryHex: secondaryHex
+          neutralHex: neutralHex || undefined,
+          successHex: successHex || undefined,
+          warningHex: warningHex || undefined,
+          infoHex: infoHex || undefined,
+          errorHex: errorHex || undefined
         }
       }, '*');
     };
@@ -246,14 +309,13 @@
       }, '*');
     };
     
-    // Update preview function
-    function updatePreview() {
-      // This would show a preview of the generated colors
-      // You'd implement the HCT conversion logic here for preview
-    }
-    
-    // Initial preview
-    updatePreview();
+    // Handle messages from plugin
+    window.onmessage = (event) => {
+      const msg = event.data.pluginMessage;
+      if (msg && msg.type === 'generation-complete') {
+        console.log('Theme generated successfully!');
+      }
+    };
   </script>
 </body>
 </html>
