@@ -125,23 +125,23 @@ function rgbToHex(r: number, g: number, b: number): string {
   }).join('');
 }
 
-// Generate neutral palette from primary using HCT color space for accuracy
-function generateNeutralFromPrimary(primaryHex: string, tones: number[]): ColorSet {
-  // Get HCT values from primary color
-  const argb = argbFromHex(primaryHex);
-  const hct = Hct.fromInt(argb);
+// Generate neutral palette from primary by reducing saturation to 2%
+function generateNeutralFromPrimary(primaryHex: string, tones: number[]): { palette: ColorSet; baseHex: string } {
+  // Get HSL from primary
+  const hsl = hexToHsl(primaryHex);
   
-  // Create neutral using same hue but very low chroma (around 4 works well)
-  // Tone 50 gives us the middle lightness
-  const neutralHct = Hct.from(hct.hue, 4, 50);
-  const neutralArgb = neutralHct.toInt();
-  const neutralHex = hexFromArgb(neutralArgb);
+  // Create a neutral color with same hue and lightness but 2% saturation
+  const neutralRgb = hslToRgb(hsl.h, 2, hsl.l);
+  const neutralHex = rgbToHex(neutralRgb.r, neutralRgb.g, neutralRgb.b);
   
-  console.log(`Primary: ${primaryHex} -> HCT(${Math.round(hct.hue)}, ${Math.round(hct.chroma)}, ${Math.round(hct.tone)})`);
-  console.log(`Neutral: ${neutralHex} -> HCT(${Math.round(hct.hue)}, 4, 50)`);
+  console.log(`Primary: ${primaryHex} -> HSL(${hsl.h}, ${hsl.s}, ${hsl.l})`);
+  console.log(`Neutral: ${neutralHex} -> HSL(${hsl.h}, 2, ${hsl.l})`);
   
   // Generate tonal palette from this neutral base
-  return generateTonalPalette(neutralHex, tones);
+  const palette = generateTonalPalette(neutralHex, tones);
+  
+  // Return both the palette and the exact base color we calculated
+  return { palette, baseHex: neutralHex };
 }
 
 // Convert hex to Figma RGB/RGBA format
@@ -166,7 +166,7 @@ function hexToFigmaColor(hex: string, alpha: number = 1): RGBA | RGB {
 }
 
 // Create Base collection with tonal palettes
-async function createBaseCollection(colors: DesignSystemColors, primaryHex: string, overrides: ColorOverrides = {}) {
+async function createBaseCollection(colors: DesignSystemColors, primaryHex: string, neutralBaseHex: string, overrides: ColorOverrides = {}) {
   // Check if collection exists and delete it
   const existingCollections = figma.variables.getLocalVariableCollections();
   for (const collection of existingCollections) {
@@ -205,17 +205,13 @@ async function createBaseCollection(colors: DesignSystemColors, primaryHex: stri
     }
   }
   
-  // Create neutral base color (tone 50)
-  if (colors.neutral[50]) {
-    createColorVariable(`Colors/Neutral/Base`, colors.neutral[50]);
-  }
+  // Create neutral base color - use the exact calculated neutral base
+  createColorVariable(`Colors/Neutral/Base`, neutralBaseHex);
   
-  // Create neutral alpha variants (extended range)
+  // Create neutral alpha variants (extended range) - use the exact calculated neutral base
   const neutralAlphaTones = [10, 20, 30, 40, 50, 60, 70, 80, 90];
   for (const tone of neutralAlphaTones) {
-    if (colors.neutral[50]) { // Use tone 50 as base for alpha variants
-      createColorVariable(`Colors/Neutral/Alpha/${tone}`, colors.neutral[50], tone / 100);
-    }
+    createColorVariable(`Colors/Neutral/Alpha/${tone}`, neutralBaseHex, tone / 100);
   }
   
   // Create primary palette
@@ -527,11 +523,11 @@ async function createThemeCollection(baseCollection: VariableCollection) {
 }
 
 // Main function to create both collections
-async function createFigmaVariables(colors: DesignSystemColors, primaryHex: string, overrides: ColorOverrides = {}) {
+async function createFigmaVariables(colors: DesignSystemColors, primaryHex: string, neutralBaseHex: string, overrides: ColorOverrides = {}) {
   try {
     // Create Base collection first
     console.log("Creating Base collection...");
-    const baseCollection = await createBaseCollection(colors, primaryHex, overrides);
+    const baseCollection = await createBaseCollection(colors, primaryHex, neutralBaseHex, overrides);
     
     // Create Theme collection with references to Base
     console.log("Creating Theme collection...");
@@ -545,27 +541,117 @@ async function createFigmaVariables(colors: DesignSystemColors, primaryHex: stri
   }
 }
 
+// Export current theme as JSON in example.json format
+function exportThemeAsJson() {
+  try {
+    const collections = figma.variables.getLocalVariableCollections();
+    const baseCollection = collections.find(c => c.name === 'Base');
+    
+    if (!baseCollection) {
+      figma.notify('No Base collection found. Please generate a theme first.', { error: true });
+      return;
+    }
+    
+    // Get all variables from the Base collection
+    const variables = baseCollection.variableIds.map(id => figma.variables.getVariableById(id)).filter(Boolean);
+    
+    // Organize variables by category
+    const exportData = {
+      Base: {
+        modes: {
+          Caldera: {
+            Colors: {}
+          }
+        }
+      }
+    };
+    
+    // Process each variable
+    for (const variable of variables) {
+      if (!variable) continue;
+      
+      const nameParts = variable.name.split('/');
+      if (nameParts[0] !== 'Colors') continue;
+      
+      // Get the color value for the default mode
+      const modeId = baseCollection.modes[0].modeId;
+      const value = variable.valuesByMode[modeId];
+      
+      let colorValue: string;
+      if (typeof value === 'object' && 'r' in value) {
+        // Convert RGB to hex
+        const r = Math.round(value.r * 255);
+        const g = Math.round(value.g * 255);
+        const b = Math.round(value.b * 255);
+        colorValue = `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+      } else {
+        continue; // Skip non-color values
+      }
+      
+      // Build the nested structure
+      let current = exportData.Base.modes.Caldera.Colors;
+      for (let i = 1; i < nameParts.length - 1; i++) {
+        const part = nameParts[i];
+        if (!current[part]) {
+          current[part] = {};
+        }
+        current = current[part];
+      }
+      
+      // Add the final value
+      const finalKey = nameParts[nameParts.length - 1];
+      current[finalKey] = {
+        "$scopes": ["ALL_SCOPES"],
+        "$type": "color",
+        "$value": colorValue
+      };
+    }
+    
+    // Convert to JSON string with proper formatting
+    const jsonString = JSON.stringify([exportData], null, 2);
+    
+    // Send the JSON data to the UI for download
+    figma.ui.postMessage({
+      type: 'export-data',
+      jsonData: jsonString,
+      filename: 'theme-export.json'
+    });
+    
+  } catch (e) {
+    console.error('Failed to export theme:', e);
+    figma.notify('Failed to export theme. Please try again.', { error: true });
+  }
+}
+
 // Show UI with larger dimensions to accommodate new inputs
 figma.showUI(__html__, { width: 420, height: 650 });
 
 // Handle messages from UI
 figma.ui.onmessage = async (msg) => {
-  if (msg.type === 'generate-colors') {
-    const { primaryHex, neutralHex, successHex, warningHex, infoHex, errorHex } = msg;
+  if (msg.type === 'generate-theme') {
+    const { hex, neutralHex, successHex, warningHex, infoHex, errorHex } = msg;
     
-    console.log("Generating theme from primary color:", primaryHex);
+    console.log("Generating theme from primary color:", hex);
     
     // Define tones for each palette type
     const fullTones = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20, 25, 30, 35, 40, 50, 60, 70, 80, 85, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99];
     
     // Generate core palettes
+    let neutralBase = hex; // Default to primary hex
     const colors: DesignSystemColors = {
-      primary: generateTonalPalette(primaryHex, fullTones),
-      neutral: neutralHex 
-        ? generateTonalPalette(neutralHex, fullTones)
-        : generateNeutralFromPrimary(primaryHex, fullTones),
+      primary: generateTonalPalette(hex, fullTones),
+      neutral: {},
       error: {} // Will be generated in createBaseCollection
     };
+    
+    if (neutralHex) {
+      colors.neutral = generateTonalPalette(neutralHex, fullTones);
+      neutralBase = neutralHex;
+    } else {
+      const neutralResult = generateNeutralFromPrimary(hex, fullTones);
+      colors.neutral = neutralResult.palette;
+      neutralBase = neutralResult.baseHex;
+    }
     
     // Add optional semantic palettes if provided
     if (successHex) {
@@ -581,14 +667,18 @@ figma.ui.onmessage = async (msg) => {
     // Log generated colors for debugging
     console.log("Generated color palettes:", colors);
     
-    // Create Figma variables - pass all override colors
-    await createFigmaVariables(colors, primaryHex, { neutralHex, successHex, warningHex, infoHex, errorHex });
+    // Create Figma variables - pass all override colors and neutral base
+    await createFigmaVariables(colors, hex, neutralBase, { neutralHex, successHex, warningHex, infoHex, errorHex });
     
     // Send success message back to UI
     figma.ui.postMessage({ 
       type: 'generation-complete',
       colors: colors 
     });
+  }
+  
+  if (msg.type === 'export-json') {
+    exportThemeAsJson();
   }
   
   if (msg.type === 'get-hct-info') {
@@ -606,9 +696,5 @@ figma.ui.onmessage = async (msg) => {
         tone: Math.round(hct.tone)
       }
     });
-  }
-  
-  if (msg.type === 'cancel') {
-    figma.closePlugin();
   }
 };

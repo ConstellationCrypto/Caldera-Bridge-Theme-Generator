@@ -219,8 +219,8 @@
   </div>
   
   <div class="button-group">
-    <button class="secondary" id="cancel">Cancel</button>
     <button class="primary" id="generate">Generate Theme</button>
+    <button class="secondary" id="export">Export JSON</button>
   </div>
   
   <script>
@@ -291,8 +291,8 @@
       
       parent.postMessage({
         pluginMessage: {
-          type: 'generate-colors',
-          primaryHex: primaryHex,
+          type: 'generate-theme',
+          hex: primaryHex,
           neutralHex: neutralHex || undefined,
           successHex: successHex || undefined,
           warningHex: warningHex || undefined,
@@ -302,10 +302,10 @@
       }, '*');
     };
     
-    // Cancel button
-    document.getElementById('cancel').onclick = () => {
+    // Export button
+    document.getElementById('export').onclick = () => {
       parent.postMessage({
-        pluginMessage: { type: 'cancel' }
+        pluginMessage: { type: 'export-json' }
       }, '*');
     };
     
@@ -314,6 +314,19 @@
       const msg = event.data.pluginMessage;
       if (msg && msg.type === 'generation-complete') {
         console.log('Theme generated successfully!');
+      }
+      if (msg && msg.type === 'export-data') {
+        // Create and download the JSON file
+        const blob = new Blob([msg.jsonData], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = msg.filename || 'theme-export.json';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        console.log('Theme exported successfully!');
       }
     };
   </script>
