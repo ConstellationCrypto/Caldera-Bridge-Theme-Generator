@@ -370,7 +370,7 @@ async function createBaseCollection(colors: DesignSystemColors, primaryHex: stri
 }
 
 // Create Theme collection with Light and Dark modes
-async function createThemeCollection(baseCollection: VariableCollection) {
+async function createThemeCollection(baseCollection: VariableCollection, cornerRadiusLevel: number = 3) {
   // Find or create Theme collection (do NOT delete existing to preserve links)
   let themeCollection = figma.variables.getLocalVariableCollections().find(c => c.name === "Theme");
   if (!themeCollection) {
@@ -502,16 +502,33 @@ async function createThemeCollection(baseCollection: VariableCollection) {
   createAliasVariable("Status/Success/Light", "Colors/Success/98", "Colors/Success/30");
   createAliasVariable("Status/Success/Dark", "Colors/Success/30", "Colors/Success/98");
   
-  // Create Corner aliases
+  // Create Corner aliases based on selected level
   console.log("Creating theme Corner variables...");
-  createAliasVariable("Corners/None", "Corners/2", "Corners/None", "FLOAT");
-  createAliasVariable("Corners/XS", "Corners/8", "Corners/8", "FLOAT");
-  createAliasVariable("Corners/SM", "Corners/16", "Corners/16", "FLOAT");
-  createAliasVariable("Corners/Base", "Corners/24", "Corners/24", "FLOAT");
-  createAliasVariable("Corners/LG", "Corners/48", "Corners/48", "FLOAT");
-  createAliasVariable("Corners/XL", "Corners/96", "Corners/96", "FLOAT");
-  // Keep MD for backward compatibility
-  createAliasVariable("Corners/MD", "Corners/48", "Corners/48", "FLOAT");
+  
+  // Define corner radius mappings for each level
+  const cornerMappings = [
+    // Level 0: None - [0,0,0,0,0,0]
+    { None: "Corners/None", XS: "Corners/None", SM: "Corners/None", Base: "Corners/None", LG: "Corners/None", XL: "Corners/None" },
+    // Level 1: Minimal - [2,2,2,2,2,2] 
+    { None: "Corners/2", XS: "Corners/2", SM: "Corners/2", Base: "Corners/2", LG: "Corners/2", XL: "Corners/2" },
+    // Level 2: Soft - [0,2,4,8,12,16]
+    { None: "Corners/None", XS: "Corners/2", SM: "Corners/4", Base: "Corners/8", LG: "Corners/12", XL: "Corners/16" },
+    // Level 3: Default - [2,4,8,16,24,48]
+    { None: "Corners/2", XS: "Corners/4", SM: "Corners/8", Base: "Corners/16", LG: "Corners/24", XL: "Corners/48" },
+    // Level 4: Round - [2,8,16,24,48,96]
+    { None: "Corners/2", XS: "Corners/8", SM: "Corners/16", Base: "Corners/24", LG: "Corners/48", XL: "Corners/96" }
+  ];
+  
+  const mapping = cornerMappings[cornerRadiusLevel] || cornerMappings[3]; // Default to level 3
+  
+  console.log(`Corner radius level ${cornerRadiusLevel}: Using mapping:`, mapping);
+  
+  createAliasVariable("Corners/None", mapping.None, mapping.None, "FLOAT");
+  createAliasVariable("Corners/XS", mapping.XS, mapping.XS, "FLOAT");
+  createAliasVariable("Corners/SM", mapping.SM, mapping.SM, "FLOAT");
+  createAliasVariable("Corners/Base", mapping.Base, mapping.Base, "FLOAT");
+  createAliasVariable("Corners/LG", mapping.LG, mapping.LG, "FLOAT");
+  createAliasVariable("Corners/XL", mapping.XL, mapping.XL, "FLOAT");
   createAliasVariable("Corners/Circle", "Corners/Circle", "Corners/Circle", "FLOAT");
   
   // Create Misc variables
@@ -526,7 +543,7 @@ async function createThemeCollection(baseCollection: VariableCollection) {
 }
 
 // Main function to create both collections
-async function createFigmaVariables(colors: DesignSystemColors, primaryHex: string, neutralBaseHex: string, overrides: ColorOverrides = {}) {
+async function createFigmaVariables(colors: DesignSystemColors, primaryHex: string, neutralBaseHex: string, overrides: ColorOverrides = {}, cornerRadiusLevel: number = 3) {
   try {
     // Create Base collection first
     console.log("Creating Base collection...");
@@ -534,7 +551,7 @@ async function createFigmaVariables(colors: DesignSystemColors, primaryHex: stri
     
     // Create Theme collection with references to Base
     console.log("Creating Theme collection...");
-    await createThemeCollection(baseCollection);
+    await createThemeCollection(baseCollection, cornerRadiusLevel);
     
     figma.notify("✅ Base and Theme collections created successfully!");
     
@@ -660,14 +677,15 @@ function exportThemeAsJson() {
 }
 
 // Show UI with larger dimensions to accommodate new inputs
-figma.showUI(__html__, { width: 420, height: 650 });
+figma.showUI(__html__, { width: 420, height: 700 });
 
 // Handle messages from UI
 figma.ui.onmessage = async (msg) => {
   if (msg.type === 'generate-theme') {
-    const { hex, neutralHex, successHex, warningHex, infoHex, errorHex } = msg;
+    const { hex, neutralHex, successHex, warningHex, infoHex, errorHex, cornerRadiusLevel } = msg;
     
     console.log("Generating theme from primary color:", hex);
+    console.log("Corner radius level:", cornerRadiusLevel !== undefined ? cornerRadiusLevel : 3);
     
     // Define tones for each palette type
     const fullTones = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20, 25, 30, 35, 40, 50, 60, 70, 80, 85, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99];
@@ -703,8 +721,8 @@ figma.ui.onmessage = async (msg) => {
     // Log generated colors for debugging
     console.log("Generated color palettes:", colors);
     
-    // Create Figma variables - pass all override colors and neutral base
-    await createFigmaVariables(colors, hex, neutralBase, { neutralHex, successHex, warningHex, infoHex, errorHex });
+    // Create Figma variables - pass all override colors, neutral base, and corner radius level
+    await createFigmaVariables(colors, hex, neutralBase, { neutralHex, successHex, warningHex, infoHex, errorHex }, cornerRadiusLevel !== undefined ? cornerRadiusLevel : 3);
     
     // Send success message back to UI
     figma.ui.postMessage({ 
