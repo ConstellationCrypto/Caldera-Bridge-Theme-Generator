@@ -178,10 +178,10 @@ async function createBaseCollection(colors: DesignSystemColors, primaryHex: stri
 
   // Helper to create or update a COLOR variable by name
   function createColorVariable(path: string, hex: string, alpha: number = 1): Variable {
-    const existing = baseCollection.variableIds
+    const existing = baseCollection!.variableIds
       .map(id => figma.variables.getVariableById(id))
       .find(v => v && v.name === path);
-    const variable = existing || figma.variables.createVariable(path, baseCollection, "COLOR");
+    const variable = existing || figma.variables.createVariable(path, baseCollection!, "COLOR");
     const color = hexToFigmaColor(hex, alpha);
     variable.setValueForMode(modeId, color);
     return variable;
@@ -253,8 +253,8 @@ async function createBaseCollection(colors: DesignSystemColors, primaryHex: stri
   for (const [statusName, config] of Object.entries(statusColors)) {
     console.log(`Creating ${statusName} palette...`);
     
-    let statusPalette;
-    let baseHex;
+    let statusPalette: ColorSet;
+    let baseHex: string;
     
     if (config.override) {
       // Use the override color to generate the palette
@@ -274,7 +274,7 @@ async function createBaseCollection(colors: DesignSystemColors, primaryHex: stri
     
     // Create tone variables
     for (const tone of statusTones) {
-      if (statusPalette[tone]) {
+      if (statusPalette && statusPalette[tone]) {
         createColorVariable(`Colors/${statusName}/${tone}`, statusPalette[tone]);
       }
     }
@@ -312,10 +312,10 @@ async function createBaseCollection(colors: DesignSystemColors, primaryHex: stri
     'Circle': 9999
   } as Record<string, number>;
   for (const [name, value] of Object.entries(corners)) {
-    const existing = baseCollection.variableIds
+    const existing = baseCollection!.variableIds
       .map(id => figma.variables.getVariableById(id))
       .find(v => v && v.name === `Corners/${name}`);
-    const cornerVar = existing || figma.variables.createVariable(`Corners/${name}`, baseCollection, "FLOAT");
+    const cornerVar = existing || figma.variables.createVariable(`Corners/${name}`, baseCollection!, "FLOAT");
     cornerVar.setValueForMode(modeId, value);
     cornerVar.scopes = ['CORNER_RADIUS'];
   }
@@ -342,10 +342,10 @@ async function createBaseCollection(colors: DesignSystemColors, primaryHex: stri
     '1-2': 4
   } as Record<string, number>;
   for (const [name, value] of Object.entries(spacing)) {
-    const existing = baseCollection.variableIds
+    const existing = baseCollection!.variableIds
       .map(id => figma.variables.getVariableById(id))
       .find(v => v && v.name === `Spacing/${name}`);
-    const spacingVar = existing || figma.variables.createVariable(`Spacing/${name}`, baseCollection, "FLOAT");
+    const spacingVar = existing || figma.variables.createVariable(`Spacing/${name}`, baseCollection!, "FLOAT");
     spacingVar.setValueForMode(modeId, value);
     spacingVar.scopes = name.startsWith('-') ? ['ALL_SCOPES'] : ['WIDTH_HEIGHT', 'GAP'];
   }
@@ -358,10 +358,10 @@ async function createBaseCollection(colors: DesignSystemColors, primaryHex: stri
     'Data': 'Space Mono'
   } as Record<string, string>;
   for (const [name, value] of Object.entries(typography)) {
-    const existing = baseCollection.variableIds
+    const existing = baseCollection!.variableIds
       .map(id => figma.variables.getVariableById(id))
       .find(v => v && v.name === `Typography/${name}`);
-    const typographyVar = existing || figma.variables.createVariable(`Typography/${name}`, baseCollection, "STRING");
+    const typographyVar = existing || figma.variables.createVariable(`Typography/${name}`, baseCollection!, "STRING");
     typographyVar.setValueForMode(modeId, value);
     typographyVar.scopes = ['TEXT_CONTENT', 'FONT_FAMILY'];
   }
@@ -371,32 +371,38 @@ async function createBaseCollection(colors: DesignSystemColors, primaryHex: stri
 
 // Create Theme collection with Light and Dark modes
 async function createThemeCollection(baseCollection: VariableCollection) {
-  // Check if collection exists and delete it
-  const existingCollections = figma.variables.getLocalVariableCollections();
-  for (const collection of existingCollections) {
-    if (collection.name === "Theme") {
-      collection.remove();
-    }
+  // Find or create Theme collection (do NOT delete existing to preserve links)
+  let themeCollection = figma.variables.getLocalVariableCollections().find(c => c.name === "Theme");
+  if (!themeCollection) {
+    themeCollection = figma.variables.createVariableCollection("Theme");
   }
-  
-  // Create Theme collection
-  const themeCollection = figma.variables.createVariableCollection("Theme");
-  
-  // Get the default mode and rename it to "Light"
+
+  // Ensure Light and Dark modes exist
   const lightModeId = themeCollection.modes[0].modeId;
   themeCollection.renameMode(lightModeId, "Light");
   
-  // Add Dark mode
-  const darkModeId = themeCollection.addMode("Dark");
+  // Check if Dark mode exists, if not create it
+  let darkModeId = themeCollection.modes.find(m => m.name === "Dark")?.modeId;
+  if (!darkModeId) {
+    darkModeId = themeCollection.addMode("Dark");
+  }
+
+  // Helper: find or create variable by name in Theme collection
+  function upsertVariable(path: string, type: VariableResolvedDataType = "COLOR"): Variable {
+    const existing = themeCollection!.variableIds
+      .map(id => figma.variables.getVariableById(id))
+      .find(v => v && v.name === path);
+    return existing || figma.variables.createVariable(path, themeCollection!, type);
+  }
   
-  // Helper to create a variable with alias to Base collection
+  // Helper to create or update a variable with alias to Base collection
   function createAliasVariable(
     path: string,
     lightAlias: string,
     darkAlias: string,
-    type: VariableType = "COLOR"
+    type: VariableResolvedDataType = "COLOR"
   ): Variable {
-    const variable = figma.variables.createVariable(path, themeCollection, type);
+    const variable = upsertVariable(path, type);
     
     // Get base variables for aliasing
     const lightBaseVar = baseCollection.variableIds
@@ -414,7 +420,7 @@ async function createThemeCollection(baseCollection: VariableCollection) {
       });
     }
     
-    if (darkBaseVar) {
+    if (darkBaseVar && darkModeId) {
       variable.setValueForMode(darkModeId, {
         type: 'VARIABLE_ALIAS',
         id: darkBaseVar.id
@@ -426,38 +432,42 @@ async function createThemeCollection(baseCollection: VariableCollection) {
   
   // Create Background variables
   console.log("Creating theme Background variables...");
-  createAliasVariable("Background/Main", "Colors/Neutral/90", "Colors/Neutral/10");
-  createAliasVariable("Background/Layer 1", "Colors/Neutral/99", "Colors/Neutral/15");
-  createAliasVariable("Background/Layer 2", "Colors/Neutral/96", "Colors/Neutral/20");
-  createAliasVariable("Background/Layer 3", "Colors/Neutral/93", "Colors/Neutral/25");
+  createAliasVariable("Background/Main", "Colors/Neutral/90", "Colors/Neutral/15");
+  createAliasVariable("Background/Layer 1", "Colors/Neutral/99", "Colors/Neutral/30");
+  createAliasVariable("Background/Layer 2", "Colors/Neutral/96", "Colors/Neutral/25");
+  createAliasVariable("Background/Layer 3", "Colors/Neutral/93", "Colors/Neutral/20");
   
   // Create Text variables
   console.log("Creating theme Text variables...");
-  createAliasVariable("Text/Primary", "Colors/Neutral/10", "Colors/Neutral/90");
-  createAliasVariable("Text/Secondary", "Colors/Neutral/40", "Colors/Neutral/60");
-  createAliasVariable("Text/Disabled", "Colors/Neutral/Alpha/50", "Colors/Neutral/Alpha/50");
+  createAliasVariable("Text/Primary", "Colors/Neutral/10", "Colors/Neutral/98");
+  createAliasVariable("Text/Secondary", "Colors/Neutral/40", "Colors/Neutral/90");
+  createAliasVariable("Text/Disabled", "Colors/Neutral/Alpha/50", "Colors/White/100");
   
   // Create Interactive Primary variables
   console.log("Creating theme Interactive variables...");
-  createAliasVariable("Interactive/Primary/Active", "Colors/Primary/60", "Colors/Primary/40");
-  createAliasVariable("Interactive/Primary/Hover", "Colors/Primary/70", "Colors/Primary/30");
-  createAliasVariable("Interactive/Primary/Inactive", "Colors/Primary/95", "Colors/Primary/20");
+  createAliasVariable("Interactive/Primary/Active", "Colors/Primary/60", "Colors/Primary/60");
+  createAliasVariable("Interactive/Primary/Hover", "Colors/Primary/70", "Colors/Primary/40");
+  createAliasVariable("Interactive/Primary/Inactive", "Colors/Primary/95", "Colors/Primary/95");
   createAliasVariable("Interactive/Primary/Disabled", "Colors/Neutral/Alpha/30", "Colors/Neutral/Alpha/30");
-  createAliasVariable("Interactive/Primary/Contrast", "Colors/Primary/98", "Colors/Primary/10");
+  createAliasVariable("Interactive/Primary/Contrast", "Colors/Primary/98", "Colors/Primary/5");
   
-  // Create Interactive Secondary variables (using Primary with different tones)
-  createAliasVariable("Interactive/Secondary/Active", "Colors/Primary/10", "Colors/Primary/90");
-  createAliasVariable("Interactive/Secondary/Hover", "Colors/Primary/Alpha/10", "Colors/Primary/Alpha/10");
-  createAliasVariable("Interactive/Secondary/Inactive", "Colors/Primary/98", "Colors/Primary/10");
-  createAliasVariable("Interactive/Secondary/Disabled", "Colors/Neutral/Alpha/20", "Colors/Neutral/Alpha/20");
-  createAliasVariable("Interactive/Secondary/Contrast", "Colors/Primary/60", "Colors/Primary/40");
+  // Create Interactive Secondary variables
+  createAliasVariable("Interactive/Secondary/Active", "Colors/Primary/40", "Colors/Primary/70");
+  createAliasVariable("Interactive/Secondary/Hover", "Colors/Primary/50", "Colors/Primary/50");
+  createAliasVariable("Interactive/Secondary/Inactive", "Colors/Neutral/40", "Colors/Neutral/85");
+  createAliasVariable("Interactive/Secondary/Disabled", "Colors/Neutral/Alpha/30", "Colors/Neutral/Alpha/30");
+  createAliasVariable("Interactive/Secondary/Contrast", "Colors/Primary/98", "Colors/Primary/5");
   
-  // Create Interactive Tertiary variables (using Neutral)
-  createAliasVariable("Interactive/Tertiary/Active", "Colors/Neutral/60", "Colors/Neutral/Alpha/70");
-  createAliasVariable("Interactive/Tertiary/Hover", "Colors/Primary/Alpha/10", "Colors/Primary/Alpha/10");
-  createAliasVariable("Interactive/Tertiary/Inactive", "Colors/Neutral/Alpha/10", "Colors/Neutral/Alpha/10");
-  createAliasVariable("Interactive/Tertiary/Disabled", "Colors/Neutral/Alpha/10", "Colors/Neutral/Alpha/10");
-  createAliasVariable("Interactive/Tertiary/Contrast", "Colors/Neutral/99", "Colors/Neutral/98");
+  // Create Interactive Tertiary variables
+  createAliasVariable("Interactive/Tertiary/Active", "Colors/Neutral/40", "Colors/Neutral/90");
+  createAliasVariable("Interactive/Tertiary/Hover", "Colors/Neutral/95", "Colors/Neutral/80");
+  createAliasVariable("Interactive/Tertiary/Inactive", "Colors/Neutral/85", "Colors/White/20");
+  createAliasVariable("Interactive/Tertiary/Disabled", "Colors/Neutral/Alpha/30", "Colors/White/10");
+  createAliasVariable("Interactive/Tertiary/Contrast", "Colors/Neutral/98", "Colors/Neutral/10");
+
+  // Create Interactive Input variables
+  createAliasVariable("Interactive/Input/Active", "Colors/Neutral/Alpha/10", "Colors/Neutral/Alpha/10");
+  createAliasVariable("Interactive/Input/Inactive", "Colors/Neutral/Alpha/20", "Colors/Neutral/Alpha/20");
   
   // Create Status variables (now all are always available)
   console.log("Creating theme Status variables...");
@@ -465,41 +475,49 @@ async function createThemeCollection(baseCollection: VariableCollection) {
   // Warning
   createAliasVariable("Status/Warning/Main", "Colors/Warning/80", "Colors/Warning/80");
   createAliasVariable("Status/Warning/Foreground", "Colors/Warning/5", "Colors/Warning/5");
-  createAliasVariable("Status/Warning/Light", "Colors/Warning/40", "Colors/Warning/95");
-  createAliasVariable("Status/Warning/Dark", "Colors/Warning/95", "Colors/Warning/40");
+  createAliasVariable("Status/Warning/Light", "Colors/Warning/95", "Colors/Warning/40");
+  createAliasVariable("Status/Warning/Dark", "Colors/Warning/40", "Colors/Warning/95");
   
   // Info
   createAliasVariable("Status/Info/Main", "Colors/Info/50", "Colors/Info/50");
-  createAliasVariable("Status/Info/Foreground", "Colors/Neutral/99", "Colors/Info/99");
-  createAliasVariable("Status/Info/Light", "Colors/Info/20", "Colors/Info/90");
-  createAliasVariable("Status/Info/Dark", "Colors/Info/90", "Colors/Info/20");
+  createAliasVariable("Status/Info/Foreground", "Colors/Info/99", "Colors/Neutral/99");
+  createAliasVariable("Status/Info/Light", "Colors/Info/90", "Colors/Info/20");
+  createAliasVariable("Status/Info/Dark", "Colors/Info/20", "Colors/Info/90");
   
-  // Failure/Error
+  // Failure (canonical name in example.json)
+  createAliasVariable("Status/Failure/Main", "Colors/Failure/60", "Colors/Failure/60");
+  createAliasVariable("Status/Failure/Foreground", "Colors/Failure/99", "Colors/Failure/99");
+  createAliasVariable("Status/Failure/Light", "Colors/Failure/90", "Colors/Failure/20");
+  createAliasVariable("Status/Failure/Dark", "Colors/Failure/20", "Colors/Primary/90");
+  
+  // Error (backward compatibility - update to match Failure)
   createAliasVariable("Status/Error/Main", "Colors/Failure/60", "Colors/Failure/60");
   createAliasVariable("Status/Error/Foreground", "Colors/Failure/99", "Colors/Failure/99");
-  createAliasVariable("Status/Error/Light", "Colors/Failure/20", "Colors/Failure/90");
-  createAliasVariable("Status/Error/Dark", "Colors/Failure/90", "Colors/Failure/20");
+  createAliasVariable("Status/Error/Light", "Colors/Failure/90", "Colors/Failure/20");
+  createAliasVariable("Status/Error/Dark", "Colors/Failure/20", "Colors/Primary/90");
   
   // Success
   createAliasVariable("Status/Success/Main", "Colors/Success/90", "Colors/Success/90");
   createAliasVariable("Status/Success/Foreground", "Colors/Success/5", "Colors/Success/5");
-  createAliasVariable("Status/Success/Light", "Colors/Success/30", "Colors/Success/98");
-  createAliasVariable("Status/Success/Dark", "Colors/Success/98", "Colors/Success/30");
+  createAliasVariable("Status/Success/Light", "Colors/Success/98", "Colors/Success/30");
+  createAliasVariable("Status/Success/Dark", "Colors/Success/30", "Colors/Success/98");
   
   // Create Corner aliases
   console.log("Creating theme Corner variables...");
-  createAliasVariable("Corners/None", "Corners/2", "Corners/2", "FLOAT");
+  createAliasVariable("Corners/None", "Corners/2", "Corners/None", "FLOAT");
   createAliasVariable("Corners/XS", "Corners/8", "Corners/8", "FLOAT");
   createAliasVariable("Corners/SM", "Corners/16", "Corners/16", "FLOAT");
   createAliasVariable("Corners/Base", "Corners/24", "Corners/24", "FLOAT");
+  createAliasVariable("Corners/LG", "Corners/48", "Corners/48", "FLOAT");
+  createAliasVariable("Corners/XL", "Corners/96", "Corners/96", "FLOAT");
+  // Keep MD for backward compatibility
   createAliasVariable("Corners/MD", "Corners/48", "Corners/48", "FLOAT");
-  createAliasVariable("Corners/LG", "Corners/96", "Corners/96", "FLOAT");
   createAliasVariable("Corners/Circle", "Corners/Circle", "Corners/Circle", "FLOAT");
   
   // Create Misc variables
-  createAliasVariable("Misc/Divider", "Colors/Neutral/Alpha/10", "Colors/White/10");
-  createAliasVariable("Misc/Footer", "Colors/Neutral/50", "Colors/White/50");
-  createAliasVariable("Misc/Skeleton", "Colors/Neutral/Alpha/10", "Colors/White/10");
+  createAliasVariable("Misc/Divider", "Colors/Black/10", "Colors/White/10");
+  createAliasVariable("Misc/Footer", "Colors/Black/50", "Colors/White/50");
+  createAliasVariable("Misc/Skeleton", "Colors/Black/10", "Colors/White/10");
   
   // Create Brand variable
   createAliasVariable("Brand", "Colors/Primary/Base", "Colors/Primary/Base");
