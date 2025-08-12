@@ -646,7 +646,7 @@ async function createThemeCollection(baseCollection: VariableCollection, cornerR
 }
 
 // Create Bridge collection for product-specific variables (no modes needed)
-async function createBridgeCollection(themeCollection: VariableCollection, modalBackgroundEnabled: boolean = true, modalPaddingSize: string = "2") {
+async function createBridgeCollection(themeCollection: VariableCollection, modalBackgroundEnabled: boolean = true, modalPaddingSize: string = "2", headerIconsPairingEnabled: boolean = true, headerBackgroundEnabled: boolean = false) {
   // Find or create Bridge collection (do NOT delete existing to preserve links)
   let bridgeCollection = figma.variables.getLocalVariableCollections().find(c => c.name === "Bridge");
   if (!bridgeCollection) {
@@ -716,11 +716,40 @@ async function createBridgeCollection(themeCollection: VariableCollection, modal
     modalPaddingVariable.setValueForMode(defaultModeId, 0);
   }
   
+  // Create Header/Icons Pairing boolean variable
+  console.log("Creating Bridge Header/Icons Pairing boolean...");
+  const headerIconsPairingVariable = upsertBridgeVariable("Header/Icons Pairing", "BOOLEAN");
+  
+  // Set boolean value based on toggle
+  headerIconsPairingVariable.setValueForMode(defaultModeId, headerIconsPairingEnabled);
+  
+  // Create Header Background variable (functional color variable)
+  console.log("Creating Bridge Header Background variable...");
+  const headerBgVariable = upsertBridgeVariable("Header/Background", "COLOR");
+  
+  if (headerBackgroundEnabled) {
+    // Use the theme divider color (alias to Theme/Misc/Divider)
+    const themeDividerVar = themeCollection.variableIds
+      .map(id => figma.variables.getVariableById(id))
+      .find(v => v && v.name === "Misc/Divider");
+      
+    if (themeDividerVar) {
+      headerBgVariable.setValueForMode(defaultModeId, {
+        type: 'VARIABLE_ALIAS',
+        id: themeDividerVar.id
+      });
+    }
+  } else {
+    // Set to transparent (rgba(0,0,0,0)) - functional for designs
+    const transparentColor = { r: 0, g: 0, b: 0, a: 0 };
+    headerBgVariable.setValueForMode(defaultModeId, transparentColor);
+  }
+  
   return bridgeCollection;
 }
 
 // Main function to create all three collections
-async function createFigmaVariables(colors: DesignSystemColors, primaryHex: string, neutralBaseHex: string, overrides: ColorOverrides = {}, cornerRadiusLevel: number = 3, fontOverrides: FontOverrides = {}, modalBackgroundEnabled: boolean = true, modalPaddingSize: string = "2") {
+async function createFigmaVariables(colors: DesignSystemColors, primaryHex: string, neutralBaseHex: string, overrides: ColorOverrides = {}, cornerRadiusLevel: number = 3, fontOverrides: FontOverrides = {}, modalBackgroundEnabled: boolean = true, modalPaddingSize: string = "2", headerIconsPairingEnabled: boolean = true, headerBackgroundEnabled: boolean = false) {
   try {
     // Create Base collection first
     console.log("Creating Base collection...");
@@ -732,7 +761,7 @@ async function createFigmaVariables(colors: DesignSystemColors, primaryHex: stri
     
     // Create Bridge collection with product-specific variables
     console.log("Creating Bridge collection...");
-    await createBridgeCollection(themeCollection, modalBackgroundEnabled, modalPaddingSize);
+    await createBridgeCollection(themeCollection, modalBackgroundEnabled, modalPaddingSize, headerIconsPairingEnabled, headerBackgroundEnabled);
     
     figma.notify("✅ Base, Theme, and Bridge collections created successfully!");
     
@@ -969,7 +998,7 @@ async function exportThemeAsJson() {
 }
 
 // Show UI with larger dimensions to accommodate new inputs
-figma.showUI(__html__, { width: 420, height: 800 });
+figma.showUI(__html__, { width: 420, height: 900 });
 
 // Handle messages from UI
 figma.ui.onmessage = async (msg) => {
@@ -1027,7 +1056,7 @@ figma.ui.onmessage = async (msg) => {
     console.log("Generated color palettes:", colors);
     
     // Create Figma variables with font overrides
-    await createFigmaVariables(colors, hex, neutralBase, { neutralHex, successHex, warningHex, infoHex, failureHex }, cornerRadiusLevel !== undefined ? cornerRadiusLevel : 3, fontOverrides || {}, msg.modalBackgroundEnabled, msg.modalPaddingSize);
+    await createFigmaVariables(colors, hex, neutralBase, { neutralHex, successHex, warningHex, infoHex, failureHex }, cornerRadiusLevel !== undefined ? cornerRadiusLevel : 3, fontOverrides || {}, msg.modalBackgroundEnabled, msg.modalPaddingSize, msg.headerIconsPairingEnabled, msg.headerBackgroundEnabled);
     
     // Send success message back to UI
     figma.ui.postMessage({ 

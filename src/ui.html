@@ -15,7 +15,7 @@
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       padding: 20px;
       background: #ffffff;
-      height: 800px; /* Increase from 600px to accommodate typography section */
+      min-height: 100vh;
       overflow-y: auto;
     }
     
@@ -32,6 +32,42 @@
       color: #333;
       border-bottom: 1px solid #e0e0e0;
       padding-bottom: 4px;
+    }
+    
+    .collapsible-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      user-select: none;
+      transition: color 0.2s ease;
+    }
+    
+    .collapsible-header:hover {
+      color: #007aff;
+    }
+    
+    .collapse-icon {
+      font-size: 12px;
+      transition: transform 0.2s ease;
+      color: #666;
+    }
+    
+    .collapse-icon.collapsed {
+      transform: rotate(-90deg);
+    }
+    
+    .collapsible-content {
+      overflow: hidden;
+      transition: max-height 0.3s ease-out;
+    }
+    
+    .collapsible-content.collapsed {
+      max-height: 0;
+    }
+    
+    .collapsible-content:not(.collapsed) {
+      max-height: 2000px; /* Large enough for content */
     }
     
     .input-group {
@@ -134,6 +170,7 @@
       background: white;
       padding: 12px 0;
       border-top: 1px solid #e0e0e0;
+      z-index: 10;
     }
     
     button {
@@ -204,8 +241,12 @@
     </div>
   </div>
   
-  <h2>Optional Overrides</h2>
+  <h2 class="collapsible-header" onclick="toggleSection('optional-overrides')">
+    <span>Optional Overrides</span>
+    <span class="collapse-icon">▼</span>
+  </h2>
   
+  <div class="collapsible-content collapsed" id="optional-overrides-content">
   <div class="input-group">
     <label>Neutral Color <span class="optional">(optional)</span></label>
     <div class="color-input-wrapper">
@@ -260,16 +301,21 @@
       Override the default failure/error color.
     </div>
   </div>
+  </div> <!-- End Optional Overrides collapsible content -->
   
-  <h2>Typography</h2>
+  <h2 class="collapsible-header" onclick="toggleSection('typography')">
+    <span>Typography</span>
+    <span class="collapse-icon">▼</span>
+  </h2>
 
+<div class="collapsible-content collapsed" id="typography-content">
 <div class="input-group">
   <label>Display Font <span class="optional">(optional)</span></label>
-  <div style="display: flex; gap: 10px;">
-    <select id="display-font-family" style="flex: 1; padding: 10px; border: 1px solid #e0e0e0; border-radius: 6px;">
+  <div style="display: flex; flex-direction: column; gap: 8px;">
+    <select id="display-font-family" style="width: 100%; padding: 10px; border: 1px solid #e0e0e0; border-radius: 6px;">
       <option value="">Loading fonts...</option>
     </select>
-    <select id="display-font-style" style="flex: 1; padding: 10px; border: 1px solid #e0e0e0; border-radius: 6px;" disabled>
+    <select id="display-font-style" style="width: 100%; padding: 10px; border: 1px solid #e0e0e0; border-radius: 6px;" disabled>
       <option value="">Select style...</option>
     </select>
   </div>
@@ -280,11 +326,11 @@
 
 <div class="input-group">
   <label>Header Font <span class="optional">(optional)</span></label>
-  <div style="display: flex; gap: 10px;">
-    <select id="header-font-family" style="flex: 1; padding: 10px; border: 1px solid #e0e0e0; border-radius: 6px;">
+  <div style="display: flex; flex-direction: column; gap: 8px;">
+    <select id="header-font-family" style="width: 100%; padding: 10px; border: 1px solid #e0e0e0; border-radius: 6px;">
       <option value="">Loading fonts...</option>
     </select>
-    <select id="header-font-style" style="flex: 1; padding: 10px; border: 1px solid #e0e0e0; border-radius: 6px;" disabled>
+    <select id="header-font-style" style="width: 100%; padding: 10px; border: 1px solid #e0e0e0; border-radius: 6px;" disabled>
       <option value="">Select style...</option>
     </select>
   </div>
@@ -295,11 +341,11 @@
 
 <div class="input-group">
   <label>Primary Font <span class="optional">(optional)</span></label>
-  <div style="display: flex; gap: 10px;">
-    <select id="primary-font-family" style="flex: 1; padding: 10px; border: 1px solid #e0e0e0; border-radius: 6px;">
+  <div style="display: flex; flex-direction: column; gap: 8px;">
+    <select id="primary-font-family" style="width: 100%; padding: 10px; border: 1px solid #e0e0e0; border-radius: 6px;">
       <option value="">Loading fonts...</option>
     </select>
-    <select id="primary-font-style" style="flex: 1; padding: 10px; border: 1px solid #e0e0e0; border-radius: 6px;" disabled>
+    <select id="primary-font-style" style="width: 100%; padding: 10px; border: 1px solid #e0e0e0; border-radius: 6px;" disabled>
       <option value="">Select style...</option>
     </select>
   </div>
@@ -310,11 +356,11 @@
 
 <div class="input-group">
   <label>Data Font <span class="optional">(optional)</span></label>
-  <div style="display: flex; gap: 10px;">
-    <select id="data-font-family" style="flex: 1; padding: 10px; border: 1px solid #e0e0e0; border-radius: 6px;">
+  <div style="display: flex; flex-direction: column; gap: 8px;">
+    <select id="data-font-family" style="width: 100%; padding: 10px; border: 1px solid #e0e0e0; border-radius: 6px;">
       <option value="">Loading fonts...</option>
     </select>
-    <select id="data-font-style" style="flex: 1; padding: 10px; border: 1px solid #e0e0e0; border-radius: 6px;" disabled>
+    <select id="data-font-style" style="width: 100%; padding: 10px; border: 1px solid #e0e0e0; border-radius: 6px;" disabled>
       <option value="">Select style...</option>
     </select>
   </div>
@@ -322,9 +368,14 @@
     Monospace font for code, data, and technical content.
   </div>
 </div>
+</div> <!-- End Typography collapsible content -->
   
-  <h2>Theme Settings</h2>
+  <h2 class="collapsible-header" onclick="toggleSection('theme-settings')">
+    <span>Theme Settings</span>
+    <span class="collapse-icon">▼</span>
+  </h2>
   
+  <div class="collapsible-content collapsed" id="theme-settings-content">
   <div class="input-group">
     <label>Corner Radius Style</label>
     <div class="slider-container">
@@ -374,12 +425,51 @@
     </div>
   </div>
 
+  <div class="input-group">
+    <label>Header/Icons Pairing</label>
+    <div class="toggle-container" style="display: flex; align-items: center; gap: 12px;">
+      <input type="checkbox" id="header-icons-pairing-toggle" checked>
+      <label for="header-icons-pairing-toggle" style="margin: 0; cursor: pointer;">Enable header/icons pairing</label>
+    </div>
+    <div class="description">
+      Toggle whether headers and icons are paired together in the interface.
+    </div>
+  </div>
+
+  <div class="input-group">
+    <label>Header Background</label>
+    <div class="toggle-container" style="display: flex; align-items: center; gap: 12px;">
+      <input type="checkbox" id="header-background-toggle">
+      <label for="header-background-toggle" style="margin: 0; cursor: pointer;">Show header background</label>
+    </div>
+    <div class="description">
+      Toggle header background visibility. When unchecked, header background becomes transparent.
+    </div>
+  </div>
+  </div> <!-- End Theme Settings collapsible content -->
+
   <div class="button-group">
     <button class="primary" id="generate">Generate Theme</button>
     <button class="secondary" id="export">Export JSON</button>
   </div>
   
   <script>
+    // Collapsible sections functionality
+    function toggleSection(sectionId) {
+      const content = document.getElementById(sectionId + '-content');
+      const icon = document.querySelector(`[onclick="toggleSection('${sectionId}')"] .collapse-icon`);
+      
+      if (content.classList.contains('collapsed')) {
+        content.classList.remove('collapsed');
+        icon.classList.remove('collapsed');
+        icon.textContent = '▼';
+      } else {
+        content.classList.add('collapsed');
+        icon.classList.add('collapsed');
+        icon.textContent = '▶';
+      }
+    }
+
     // Font management
     let availableFonts = {};
 
@@ -582,6 +672,12 @@
       // Get modal padding selection (only relevant when background is enabled)
       const modalPaddingSize = document.getElementById('modal-padding-select').value;
       
+      // Get header/icons pairing toggle state
+      const headerIconsPairingEnabled = document.getElementById('header-icons-pairing-toggle').checked;
+      
+      // Get header background toggle state
+      const headerBackgroundEnabled = document.getElementById('header-background-toggle').checked;
+      
       parent.postMessage({
         pluginMessage: {
           type: 'generate-theme',
@@ -594,7 +690,9 @@
           cornerRadiusLevel: cornerRadiusLevel,
           fontOverrides: fontOverrides,
           modalBackgroundEnabled: modalBackgroundEnabled,
-          modalPaddingSize: modalPaddingSize
+          modalPaddingSize: modalPaddingSize,
+          headerIconsPairingEnabled: headerIconsPairingEnabled,
+          headerBackgroundEnabled: headerBackgroundEnabled
         }
       }, '*');
     };
