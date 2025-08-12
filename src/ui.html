@@ -15,7 +15,7 @@
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       padding: 20px;
       background: #ffffff;
-      height: 600px;
+      height: 800px; /* Increase from 600px to accommodate typography section */
       overflow-y: auto;
     }
     
@@ -251,15 +251,77 @@
   </div>
   
   <div class="input-group">
-    <label>Error Color <span class="optional">(optional)</span></label>
+    <label>Failure Color <span class="optional">(optional)</span></label>
     <div class="color-input-wrapper">
-      <input type="color" id="error-color" value="#ef4444">
-      <input type="text" id="error-hex" value="" placeholder="#ef4444">
+      <input type="color" id="failure-color" value="#ef4444">
+      <input type="text" id="failure-hex" value="" placeholder="#ef4444">
     </div>
     <div class="description">
-      Override the default error/failure color.
+      Override the default failure/error color.
     </div>
   </div>
+  
+  <h2>Typography</h2>
+
+<div class="input-group">
+  <label>Display Font <span class="optional">(optional)</span></label>
+  <div style="display: flex; gap: 10px;">
+    <select id="display-font-family" style="flex: 1; padding: 10px; border: 1px solid #e0e0e0; border-radius: 6px;">
+      <option value="">Loading fonts...</option>
+    </select>
+    <select id="display-font-style" style="flex: 1; padding: 10px; border: 1px solid #e0e0e0; border-radius: 6px;" disabled>
+      <option value="">Select style...</option>
+    </select>
+  </div>
+  <div class="description">
+    Font for large display text and headlines.
+  </div>
+</div>
+
+<div class="input-group">
+  <label>Header Font <span class="optional">(optional)</span></label>
+  <div style="display: flex; gap: 10px;">
+    <select id="header-font-family" style="flex: 1; padding: 10px; border: 1px solid #e0e0e0; border-radius: 6px;">
+      <option value="">Loading fonts...</option>
+    </select>
+    <select id="header-font-style" style="flex: 1; padding: 10px; border: 1px solid #e0e0e0; border-radius: 6px;" disabled>
+      <option value="">Select style...</option>
+    </select>
+  </div>
+  <div class="description">
+    Font for section headers and titles.
+  </div>
+</div>
+
+<div class="input-group">
+  <label>Primary Font <span class="optional">(optional)</span></label>
+  <div style="display: flex; gap: 10px;">
+    <select id="primary-font-family" style="flex: 1; padding: 10px; border: 1px solid #e0e0e0; border-radius: 6px;">
+      <option value="">Loading fonts...</option>
+    </select>
+    <select id="primary-font-style" style="flex: 1; padding: 10px; border: 1px solid #e0e0e0; border-radius: 6px;" disabled>
+      <option value="">Select style...</option>
+    </select>
+  </div>
+  <div class="description">
+    Font for body text and general content.
+  </div>
+</div>
+
+<div class="input-group">
+  <label>Data Font <span class="optional">(optional)</span></label>
+  <div style="display: flex; gap: 10px;">
+    <select id="data-font-family" style="flex: 1; padding: 10px; border: 1px solid #e0e0e0; border-radius: 6px;">
+      <option value="">Loading fonts...</option>
+    </select>
+    <select id="data-font-style" style="flex: 1; padding: 10px; border: 1px solid #e0e0e0; border-radius: 6px;" disabled>
+      <option value="">Select style...</option>
+    </select>
+  </div>
+  <div class="description">
+    Monospace font for code, data, and technical content.
+  </div>
+</div>
   
   <h2>Theme Settings</h2>
   
@@ -280,12 +342,54 @@
     </div>
   </div>
 
+  <div class="input-group">
+    <label>Modal Background</label>
+    <div class="toggle-container" style="display: flex; align-items: center; gap: 12px;">
+      <input type="checkbox" id="modal-background-toggle" checked>
+      <label for="modal-background-toggle" style="margin: 0; cursor: pointer;">Show background</label>
+    </div>
+    <div class="description">
+      Toggle modal background visibility. When unchecked, modal background becomes transparent.
+    </div>
+  </div>
+
+  <div class="input-group" id="modal-padding-group">
+    <label>Modal Padding</label>
+    <select id="modal-padding-select" style="width: 100%; padding: 10px; border: 1px solid #e0e0e0; border-radius: 6px;">
+      <option value="2" selected>2 (16px)</option>
+      <option value="1">1 (8px)</option>
+      <option value="3">3 (24px)</option>
+      <option value="4">4 (32px)</option>
+      <option value="5">5 (40px)</option>
+      <option value="6">6 (48px)</option>
+      <option value="7">7 (56px)</option>
+      <option value="8">8 (64px)</option>
+      <option value="9">9 (72px)</option>
+      <option value="10">10 (80px)</option>
+      <option value="11">11 (88px)</option>
+      <option value="12">12 (96px)</option>
+    </select>
+    <div class="description">
+      Select padding size for modal content when background is enabled.
+    </div>
+  </div>
+
   <div class="button-group">
     <button class="primary" id="generate">Generate Theme</button>
     <button class="secondary" id="export">Export JSON</button>
   </div>
   
   <script>
+    // Font management
+    let availableFonts = {};
+
+    // Request fonts from Figma on page load
+    document.addEventListener('DOMContentLoaded', () => {
+      parent.postMessage({
+        pluginMessage: { type: 'load-fonts' }
+      }, '*');
+    });
+
     // Color input pairs
     const colorPairs = [
       { color: 'primary-color', hex: 'primary-hex' },
@@ -293,9 +397,9 @@
       { color: 'success-color', hex: 'success-hex' },
       { color: 'warning-color', hex: 'warning-hex' },
       { color: 'info-color', hex: 'info-hex' },
-      { color: 'error-color', hex: 'error-hex' }
+      { color: 'failure-color', hex: 'failure-hex' }
     ];
-    
+
     // Sync color inputs
     colorPairs.forEach(pair => {
       const colorInput = document.getElementById(pair.color);
@@ -312,7 +416,7 @@
         }
       });
     });
-    
+
     // Corner radius slider
     const cornerSlider = document.getElementById('corner-radius-slider');
     const cornerDescription = document.getElementById('corner-description');
@@ -329,12 +433,102 @@
       const level = parseInt(e.target.value);
       cornerDescription.textContent = cornerDescriptions[level];
     });
-    
+
     // Validate hex color format
     function isValidHex(hex) {
       return /^#[0-9A-F]{6}$/i.test(hex);
     }
-    
+
+    // Populate font dropdowns when fonts are loaded
+    function populateFontDropdowns(fonts) {
+      availableFonts = fonts;
+      const fontTypes = ['display', 'header', 'primary', 'data'];
+      
+      fontTypes.forEach(type => {
+        const familySelect = document.getElementById(`${type}-font-family`);
+        const styleSelect = document.getElementById(`${type}-font-style`);
+        
+        // Clear loading state
+        familySelect.innerHTML = '<option value="">Select font family...</option>';
+        
+        // Get font families, prioritizing common ones
+        const commonFonts = ['Inter', 'Roboto', 'Open Sans', 'Lato', 'Montserrat', 'Poppins', 'Source Sans Pro', 'Nunito'];
+        const monospaceFonts = ['Space Mono', 'Fira Code', 'Source Code Pro', 'JetBrains Mono', 'Roboto Mono', 'Ubuntu Mono', 'Inconsolata'];
+        
+        const fontFamilies = Object.keys(fonts).sort();
+        
+        // For data type, prioritize monospace fonts
+        if (type === 'data') {
+          monospaceFonts.forEach(font => {
+            if (fonts[font]) {
+              const option = document.createElement('option');
+              option.value = font;
+              option.textContent = font;
+              familySelect.appendChild(option);
+            }
+          });
+          
+          // Add separator if we have monospace fonts
+          if (monospaceFonts.some(font => fonts[font])) {
+            const separator = document.createElement('option');
+            separator.disabled = true;
+            separator.textContent = '──────────────';
+            familySelect.appendChild(separator);
+          }
+        } else {
+          // For other types, prioritize common fonts
+          commonFonts.forEach(font => {
+            if (fonts[font]) {
+              const option = document.createElement('option');
+              option.value = font;
+              option.textContent = font;
+              familySelect.appendChild(option);
+            }
+          });
+          
+          // Add separator if we have common fonts
+          if (commonFonts.some(font => fonts[font])) {
+            const separator = document.createElement('option');
+            separator.disabled = true;
+            separator.textContent = '──────────────';
+            familySelect.appendChild(separator);
+          }
+        }
+        
+        // Add all other fonts
+        fontFamilies.forEach(family => {
+          const isCommon = commonFonts.includes(family);
+          const isMono = monospaceFonts.includes(family);
+          
+          if ((type === 'data' && !isMono) || (type !== 'data' && !isCommon)) {
+            const option = document.createElement('option');
+            option.value = family;
+            option.textContent = family;
+            familySelect.appendChild(option);
+          }
+        });
+        
+        // Handle family selection
+        familySelect.addEventListener('change', (e) => {
+          const family = e.target.value;
+          styleSelect.innerHTML = '<option value="">Select style...</option>';
+          
+          if (family && fonts[family]) {
+            styleSelect.disabled = false;
+            
+            fonts[family].forEach(style => {
+              const option = document.createElement('option');
+              option.value = style;
+              option.textContent = style;
+              styleSelect.appendChild(option);
+            });
+          } else {
+            styleSelect.disabled = true;
+          }
+        });
+      });
+    }
+
     // Generate button
     document.getElementById('generate').onclick = () => {
       const primaryHex = document.getElementById('primary-hex').value;
@@ -350,7 +544,7 @@
       const successHex = document.getElementById('success-hex').value;
       const warningHex = document.getElementById('warning-hex').value;
       const infoHex = document.getElementById('info-hex').value;
-      const errorHex = document.getElementById('error-hex').value;
+      const failureHex = document.getElementById('failure-hex').value;
       
       // Validate optional colors if provided
       const optionalColors = [
@@ -358,7 +552,7 @@
         { name: 'success', value: successHex },
         { name: 'warning', value: warningHex },
         { name: 'info', value: infoHex },
-        { name: 'error', value: errorHex }
+        { name: 'failure', value: failureHex }
       ];
       
       for (const color of optionalColors) {
@@ -371,6 +565,23 @@
       // Get corner radius setting
       const cornerRadiusLevel = parseInt(document.getElementById('corner-radius-slider').value);
       
+      // Get font selections
+      const fontOverrides = {};
+      ['display', 'header', 'primary', 'data'].forEach(type => {
+        const family = document.getElementById(`${type}-font-family`).value;
+        const style = document.getElementById(`${type}-font-style`).value;
+        
+        if (family && style) {
+          fontOverrides[`${type}Font`] = { family, style };
+        }
+      });
+      
+      // Get modal background toggle state
+      const modalBackgroundEnabled = document.getElementById('modal-background-toggle').checked;
+      
+      // Get modal padding selection (only relevant when background is enabled)
+      const modalPaddingSize = document.getElementById('modal-padding-select').value;
+      
       parent.postMessage({
         pluginMessage: {
           type: 'generate-theme',
@@ -379,25 +590,47 @@
           successHex: successHex || undefined,
           warningHex: warningHex || undefined,
           infoHex: infoHex || undefined,
-          errorHex: errorHex || undefined,
-          cornerRadiusLevel: cornerRadiusLevel
+          failureHex: failureHex || undefined,
+          cornerRadiusLevel: cornerRadiusLevel,
+          fontOverrides: fontOverrides,
+          modalBackgroundEnabled: modalBackgroundEnabled,
+          modalPaddingSize: modalPaddingSize
         }
       }, '*');
     };
-    
+
     // Export button
     document.getElementById('export').onclick = () => {
       parent.postMessage({
         pluginMessage: { type: 'export-json' }
       }, '*');
     };
+
+    // Toggle modal padding visibility based on background toggle
+    function toggleModalPadding() {
+      const backgroundEnabled = document.getElementById('modal-background-toggle').checked;
+      const paddingGroup = document.getElementById('modal-padding-group');
+      paddingGroup.style.display = backgroundEnabled ? 'block' : 'none';
+    }
     
+    // Set initial state and add event listener
+    document.addEventListener('DOMContentLoaded', () => {
+      toggleModalPadding();
+      document.getElementById('modal-background-toggle').addEventListener('change', toggleModalPadding);
+    });
+
     // Handle messages from plugin
     window.onmessage = (event) => {
       const msg = event.data.pluginMessage;
+      
+      if (msg && msg.type === 'fonts-loaded') {
+        populateFontDropdowns(msg.fonts);
+      }
+      
       if (msg && msg.type === 'generation-complete') {
         console.log('Theme generated successfully!');
       }
+      
       if (msg && msg.type === 'export-data') {
         // Create and download the JSON file
         const blob = new Blob([msg.jsonData], { type: 'application/json' });

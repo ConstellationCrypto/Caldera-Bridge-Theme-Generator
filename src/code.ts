@@ -14,7 +14,7 @@ interface ColorSet {
 interface DesignSystemColors {
   neutral: ColorSet;
   primary: ColorSet;
-  error: ColorSet;
+  failure: ColorSet;
   success?: ColorSet;
   warning?: ColorSet;
   info?: ColorSet;
@@ -25,7 +25,15 @@ interface ColorOverrides {
   successHex?: string;
   warningHex?: string;
   infoHex?: string;
-  errorHex?: string;
+  failureHex?: string;
+}
+
+// Add FontOverrides interface
+interface FontOverrides {
+  displayFont?: { family: string; style: string };
+  headerFont?: { family: string; style: string };
+  primaryFont?: { family: string; style: string };
+  dataFont?: { family: string; style: string };
 }
 
 // Convert hex to HSL
@@ -165,8 +173,43 @@ function hexToFigmaColor(hex: string, alpha: number = 1): RGBA | RGB {
   };
 }
 
-// Create Base collection with tonal palettes (update in place to preserve links)
-async function createBaseCollection(colors: DesignSystemColors, primaryHex: string, neutralBaseHex: string, overrides: ColorOverrides = {}) {
+// Function to get available fonts from Figma
+async function getAvailableFonts() {
+  try {
+    const fonts = await figma.listAvailableFontsAsync();
+    
+    // Group fonts by family
+    const fontFamilies: { [family: string]: string[] } = {};
+    
+    fonts.forEach(font => {
+      if (!fontFamilies[font.fontName.family]) {
+        fontFamilies[font.fontName.family] = [];
+      }
+      fontFamilies[font.fontName.family].push(font.fontName.style);
+    });
+    
+    // Sort families alphabetically and styles by weight/style
+    const sortedFamilies: { [family: string]: string[] } = {};
+    Object.keys(fontFamilies).sort().forEach(family => {
+      // Sort styles: Regular first, then by weight, then italics
+      sortedFamilies[family] = fontFamilies[family].sort((a, b) => {
+        if (a === 'Regular') return -1;
+        if (b === 'Regular') return 1;
+        if (a.includes('Italic') && !b.includes('Italic')) return 1;
+        if (!a.includes('Italic') && b.includes('Italic')) return -1;
+        return a.localeCompare(b);
+      });
+    });
+    
+    return sortedFamilies;
+  } catch (error) {
+    console.error('Failed to get available fonts:', error);
+    return {};
+  }
+}
+
+// Update createBaseCollection to load fonts before creating typography variables
+async function createBaseCollection(colors: DesignSystemColors, primaryHex: string, neutralBaseHex: string, overrides: ColorOverrides = {}, fontOverrides: FontOverrides = {}) {
   // Find or create Base collection
   let baseCollection = figma.variables.getLocalVariableCollections().find(c => c.name === "Base");
   if (!baseCollection) {
@@ -175,7 +218,7 @@ async function createBaseCollection(colors: DesignSystemColors, primaryHex: stri
   const modeId = baseCollection.modes[0].modeId;
   // Ensure mode is named Caldera
   baseCollection.renameMode(modeId, "Caldera");
-
+  
   // Helper to create or update a COLOR variable by name
   function createColorVariable(path: string, hex: string, alpha: number = 1): Variable {
     const existing = baseCollection!.variableIds
@@ -187,23 +230,7 @@ async function createBaseCollection(colors: DesignSystemColors, primaryHex: stri
     return variable;
   }
   
-  // Create neutral palette with extended tones
-  console.log("Creating neutral palette...");
-  const neutralTones = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20, 25, 30, 35, 40, 50, 60, 70, 80, 85, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99];
-  for (const tone of neutralTones) {
-    if (colors.neutral[tone]) {
-      createColorVariable(`Colors/Neutral/${tone}`, colors.neutral[tone]);
-    }
-  }
-  
-  // Create neutral base color - use the exact calculated neutral base
-  createColorVariable(`Colors/Neutral/Base`, neutralBaseHex);
-  
-  // Create neutral alpha variants (extended range) - use the exact calculated neutral base
-  const neutralAlphaTones = [10, 20, 30, 40, 50, 60, 70, 80, 90];
-  for (const tone of neutralAlphaTones) {
-    createColorVariable(`Colors/Neutral/Alpha/${tone}`, neutralBaseHex, tone / 100);
-  }
+
   
   // Create primary palette
   console.log("Creating primary palette...");
@@ -223,6 +250,24 @@ async function createBaseCollection(colors: DesignSystemColors, primaryHex: stri
     createColorVariable(`Colors/Primary/Alpha/${tone}`, primaryHex, tone / 100);
   }
   
+  // Create neutral palette with extended tones
+  console.log("Creating neutral palette...");
+  const neutralTones = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20, 25, 30, 35, 40, 50, 60, 70, 80, 85, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99];
+  for (const tone of neutralTones) {
+    if (colors.neutral[tone]) {
+      createColorVariable(`Colors/Neutral/${tone}`, colors.neutral[tone]);
+    }
+  }
+  
+  // Create neutral base color - use the exact calculated neutral base
+  createColorVariable(`Colors/Neutral/Base`, neutralBaseHex);
+  
+  // Create neutral alpha variants (extended range) - use the exact calculated neutral base
+  const neutralAlphaTones = [10, 20, 30, 40, 50, 60, 70, 80, 90];
+  for (const tone of neutralAlphaTones) {
+    createColorVariable(`Colors/Neutral/Alpha/${tone}`, neutralBaseHex, tone / 100);
+  }
+
   // Create status color palettes - use overrides if provided, otherwise use defaults
   console.log("Creating status color palettes...");
   const statusColors = {
@@ -244,7 +289,7 @@ async function createBaseCollection(colors: DesignSystemColors, primaryHex: stri
     'Failure': { 
       hue: 25, 
       chroma: 84,
-      override: overrides.errorHex
+      override: overrides.failureHex
     }
   };
   
@@ -350,27 +395,89 @@ async function createBaseCollection(colors: DesignSystemColors, primaryHex: stri
     spacingVar.scopes = name.startsWith('-') ? ['ALL_SCOPES'] : ['WIDTH_HEIGHT', 'GAP'];
   }
   
-  // Create/Update Typography variables (keep existing names to preserve links)
-  const typography = {
-    'Display': 'Inter',
-    'Header': 'Inter',
-    'Primary': 'Inter',
-    'Data': 'Space Mono'
-  } as Record<string, string>;
-  for (const [name, value] of Object.entries(typography)) {
-    const existing = baseCollection!.variableIds
+  // Load fonts and create typography variables
+  console.log("Loading fonts for typography variables...");
+  
+  const typographyTypes = ['Display', 'Header', 'Primary', 'Data'];
+  const defaults = {
+    'Display': { family: 'Inter', style: 'Bold' },
+    'Header': { family: 'Inter', style: 'SemiBold' }, 
+    'Primary': { family: 'Inter', style: 'Regular' },
+    'Data': { family: 'Space Mono', style: 'Regular' }
+  };
+  
+  // Track successfully loaded fonts
+  const loadedFonts: { [key: string]: { family: string; style: string } } = {};
+  
+  // Load fonts and track what was successfully loaded
+  for (const typeName of typographyTypes) {
+    const fontOverride = fontOverrides[`${typeName.toLowerCase()}Font`];
+    let targetFamily = fontOverride?.family || defaults[typeName].family;
+    let targetStyle = fontOverride?.style || defaults[typeName].style;
+    
+    try {
+      console.log(`Loading font: ${targetFamily} ${targetStyle}`);
+      await figma.loadFontAsync({ family: targetFamily, style: targetStyle });
+      // Success - use the requested font
+      loadedFonts[typeName] = { family: targetFamily, style: targetStyle };
+    } catch (error) {
+      console.error(`Failed to load font ${targetFamily} ${targetStyle}:`, error);
+      
+      // Try fallback to default font for this type
+      try {
+        console.log(`Falling back to default: ${defaults[typeName].family} ${defaults[typeName].style}`);
+        await figma.loadFontAsync({ family: defaults[typeName].family, style: defaults[typeName].style });
+        loadedFonts[typeName] = { family: defaults[typeName].family, style: defaults[typeName].style };
+      } catch (fallbackError) {
+        console.error(`Failed to load fallback font:`, fallbackError);
+        
+        // Ultimate fallback to Inter Regular
+        try {
+          console.log(`Using ultimate fallback: Inter Regular`);
+          await figma.loadFontAsync({ family: 'Inter', style: 'Regular' });
+          loadedFonts[typeName] = { family: 'Inter', style: 'Regular' };
+        } catch (ultimateError) {
+          console.error(`Even Inter Regular failed to load:`, ultimateError);
+          // Skip this typography variable if we can't load any font
+          continue;
+        }
+      }
+    }
+  }
+  
+  // Create/Update Typography variables using successfully loaded fonts
+  console.log("Creating typography variables...");
+  for (const typeName of typographyTypes) {
+    const loadedFont = loadedFonts[typeName];
+    if (!loadedFont) {
+      console.warn(`Skipping ${typeName} typography - no font could be loaded`);
+      continue;
+    }
+    
+    // Create Font variable (font family)
+    const existingFont = baseCollection!.variableIds
       .map(id => figma.variables.getVariableById(id))
-      .find(v => v && v.name === `Typography/${name}`);
-    const typographyVar = existing || figma.variables.createVariable(`Typography/${name}`, baseCollection!, "STRING");
-    typographyVar.setValueForMode(modeId, value);
-    typographyVar.scopes = ['TEXT_CONTENT', 'FONT_FAMILY'];
+      .find(v => v && v.name === `Typography/${typeName}/Font`);
+    const fontVar = existingFont || figma.variables.createVariable(`Typography/${typeName}/Font`, baseCollection!, "STRING");
+    fontVar.setValueForMode(modeId, loadedFont.family);
+    fontVar.scopes = ['TEXT_CONTENT', 'FONT_FAMILY'];
+    
+    // Create Style variable (font style/weight)
+    const existingStyle = baseCollection!.variableIds
+      .map(id => figma.variables.getVariableById(id))
+      .find(v => v && v.name === `Typography/${typeName}/Style`);
+    const styleVar = existingStyle || figma.variables.createVariable(`Typography/${typeName}/Style`, baseCollection!, "STRING");
+    styleVar.setValueForMode(modeId, loadedFont.style);
+    styleVar.scopes = ['FONT_STYLE'];
+    
+    console.log(`Created typography variables for ${typeName}: ${loadedFont.family} ${loadedFont.style}`);
   }
   
   return baseCollection;
 }
 
 // Create Theme collection with Light and Dark modes
-async function createThemeCollection(baseCollection: VariableCollection, cornerRadiusLevel: number = 3) {
+async function createThemeCollection(baseCollection: VariableCollection, cornerRadiusLevel: number = 3, modalBackgroundEnabled: boolean = true) {
   // Find or create Theme collection (do NOT delete existing to preserve links)
   let themeCollection = figma.variables.getLocalVariableCollections().find(c => c.name === "Theme");
   if (!themeCollection) {
@@ -437,6 +544,8 @@ async function createThemeCollection(baseCollection: VariableCollection, cornerR
   createAliasVariable("Background/Layer 2", "Colors/Neutral/96", "Colors/Neutral/25");
   createAliasVariable("Background/Layer 3", "Colors/Neutral/93", "Colors/Neutral/20");
   
+
+  
   // Create Text variables
   console.log("Creating theme Text variables...");
   createAliasVariable("Text/Primary", "Colors/Neutral/10", "Colors/Neutral/98");
@@ -473,13 +582,13 @@ async function createThemeCollection(baseCollection: VariableCollection, cornerR
   console.log("Creating theme Status variables...");
   
   // Warning
-  createAliasVariable("Status/Warning/Main", "Colors/Warning/80", "Colors/Warning/80");
-  createAliasVariable("Status/Warning/Foreground", "Colors/Warning/5", "Colors/Warning/5");
+    createAliasVariable("Status/Warning/Main", "Colors/Warning/80", "Colors/Warning/80");
+    createAliasVariable("Status/Warning/Foreground", "Colors/Warning/5", "Colors/Warning/5");
   createAliasVariable("Status/Warning/Light", "Colors/Warning/95", "Colors/Warning/40");
   createAliasVariable("Status/Warning/Dark", "Colors/Warning/40", "Colors/Warning/95");
   
   // Info
-  createAliasVariable("Status/Info/Main", "Colors/Info/50", "Colors/Info/50");
+    createAliasVariable("Status/Info/Main", "Colors/Info/50", "Colors/Info/50");
   createAliasVariable("Status/Info/Foreground", "Colors/Info/99", "Colors/Neutral/99");
   createAliasVariable("Status/Info/Light", "Colors/Info/90", "Colors/Info/20");
   createAliasVariable("Status/Info/Dark", "Colors/Info/20", "Colors/Info/90");
@@ -488,17 +597,11 @@ async function createThemeCollection(baseCollection: VariableCollection, cornerR
   createAliasVariable("Status/Failure/Main", "Colors/Failure/60", "Colors/Failure/60");
   createAliasVariable("Status/Failure/Foreground", "Colors/Failure/99", "Colors/Failure/99");
   createAliasVariable("Status/Failure/Light", "Colors/Failure/90", "Colors/Failure/20");
-  createAliasVariable("Status/Failure/Dark", "Colors/Failure/20", "Colors/Primary/90");
-  
-  // Error (backward compatibility - update to match Failure)
-  createAliasVariable("Status/Error/Main", "Colors/Failure/60", "Colors/Failure/60");
-  createAliasVariable("Status/Error/Foreground", "Colors/Failure/99", "Colors/Failure/99");
-  createAliasVariable("Status/Error/Light", "Colors/Failure/90", "Colors/Failure/20");
-  createAliasVariable("Status/Error/Dark", "Colors/Failure/20", "Colors/Primary/90");
+  createAliasVariable("Status/Failure/Dark", "Colors/Failure/20", "Colors/Failure/90");
   
   // Success
-  createAliasVariable("Status/Success/Main", "Colors/Success/90", "Colors/Success/90");
-  createAliasVariable("Status/Success/Foreground", "Colors/Success/5", "Colors/Success/5");
+    createAliasVariable("Status/Success/Main", "Colors/Success/90", "Colors/Success/90");
+    createAliasVariable("Status/Success/Foreground", "Colors/Success/5", "Colors/Success/5");
   createAliasVariable("Status/Success/Light", "Colors/Success/98", "Colors/Success/30");
   createAliasVariable("Status/Success/Dark", "Colors/Success/30", "Colors/Success/98");
   
@@ -542,18 +645,101 @@ async function createThemeCollection(baseCollection: VariableCollection, cornerR
   return themeCollection;
 }
 
-// Main function to create both collections
-async function createFigmaVariables(colors: DesignSystemColors, primaryHex: string, neutralBaseHex: string, overrides: ColorOverrides = {}, cornerRadiusLevel: number = 3) {
+// Create Bridge collection for product-specific variables (no modes needed)
+async function createBridgeCollection(themeCollection: VariableCollection, modalBackgroundEnabled: boolean = true, modalPaddingSize: string = "2") {
+  // Find or create Bridge collection (do NOT delete existing to preserve links)
+  let bridgeCollection = figma.variables.getLocalVariableCollections().find(c => c.name === "Bridge");
+  if (!bridgeCollection) {
+    bridgeCollection = figma.variables.createVariableCollection("Bridge");
+  }
+
+  // Bridge collection only needs the default mode (no Light/Dark modes)
+  const defaultModeId = bridgeCollection.modes[0].modeId;
+  bridgeCollection.renameMode(defaultModeId, "Default");
+
+  // Helper: find or create variable by name in Bridge collection
+  function upsertBridgeVariable(path: string, type: VariableResolvedDataType = "COLOR"): Variable {
+    const existing = bridgeCollection!.variableIds
+      .map(id => figma.variables.getVariableById(id))
+      .find(v => v && v.name === path);
+    return existing || figma.variables.createVariable(path, bridgeCollection!, type);
+  }
+  
+  // Create Modal Background variable (functional color variable)
+  console.log("Creating Bridge Modal Background variable...");
+  const modalBgVariable = upsertBridgeVariable("Modal/Background", "COLOR");
+  
+  if (modalBackgroundEnabled) {
+    // Use the theme background color (alias to Theme/Background/Main)
+    const themeBgVar = themeCollection.variableIds
+      .map(id => figma.variables.getVariableById(id))
+      .find(v => v && v.name === "Background/Main");
+      
+    if (themeBgVar) {
+      modalBgVariable.setValueForMode(defaultModeId, {
+        type: 'VARIABLE_ALIAS',
+        id: themeBgVar.id
+      });
+    }
+  } else {
+    // Set to transparent (rgba(0,0,0,0)) - functional for designs
+    const transparentColor = { r: 0, g: 0, b: 0, a: 0 };
+    modalBgVariable.setValueForMode(defaultModeId, transparentColor);
+  }
+  
+  // Create Modal Padding variable (functional spacing variable)
+  console.log("Creating Bridge Modal Padding variable...");
+  const modalPaddingVariable = upsertBridgeVariable("Modal/Padding", "FLOAT");
+  
+  if (modalBackgroundEnabled) {
+    // Use selected spacing from Base collection
+    const baseCollection = figma.variables.getLocalVariableCollections().find(c => c.name === "Base");
+    const selectedSpacingVar = baseCollection?.variableIds
+      .map(id => figma.variables.getVariableById(id))
+      .find(v => v && v.name === `Spacing/${modalPaddingSize}`);
+      
+    if (selectedSpacingVar) {
+      modalPaddingVariable.setValueForMode(defaultModeId, {
+        type: 'VARIABLE_ALIAS',
+        id: selectedSpacingVar.id
+      });
+    } else {
+      // Fallback to direct value if spacing variable not found
+      const spacingValues: Record<string, number> = {
+        '0': 0, '1': 8, '2': 16, '3': 24, '4': 32, '5': 40,
+        '6': 48, '7': 56, '8': 64, '9': 72, '10': 80, '11': 88, '12': 96
+      };
+      modalPaddingVariable.setValueForMode(defaultModeId, spacingValues[modalPaddingSize] || 16);
+    }
+  } else {
+    // No background = no padding needed
+    modalPaddingVariable.setValueForMode(defaultModeId, 0);
+  }
+  
+  return bridgeCollection;
+}
+
+// Main function to create all three collections
+async function createFigmaVariables(colors: DesignSystemColors, primaryHex: string, neutralBaseHex: string, overrides: ColorOverrides = {}, cornerRadiusLevel: number = 3, fontOverrides: FontOverrides = {}, modalBackgroundEnabled: boolean = true, modalPaddingSize: string = "2") {
   try {
     // Create Base collection first
     console.log("Creating Base collection...");
-    const baseCollection = await createBaseCollection(colors, primaryHex, neutralBaseHex, overrides);
+    const baseCollection = await createBaseCollection(colors, primaryHex, neutralBaseHex, overrides, fontOverrides);
     
     // Create Theme collection with references to Base
     console.log("Creating Theme collection...");
-    await createThemeCollection(baseCollection, cornerRadiusLevel);
+    const themeCollection = await createThemeCollection(baseCollection, cornerRadiusLevel);
     
-    figma.notify("✅ Base and Theme collections created successfully!");
+    // Create Bridge collection with product-specific variables
+    console.log("Creating Bridge collection...");
+    await createBridgeCollection(themeCollection, modalBackgroundEnabled, modalPaddingSize);
+    
+    figma.notify("✅ Base, Theme, and Bridge collections created successfully!");
+    
+    // Send success message back to UI
+    figma.ui.postMessage({
+      type: 'generation-complete'
+    });
     
   } catch (error) {
     console.error("Error creating collections:", error);
@@ -561,12 +747,14 @@ async function createFigmaVariables(colors: DesignSystemColors, primaryHex: stri
   }
 }
 
+
 // Export current theme as JSON in example.json format
-function exportThemeAsJson() {
+async function exportThemeAsJson() {
   try {
     const collections = figma.variables.getLocalVariableCollections();
     const baseCollection = collections.find(c => c.name === 'Base');
     const themeCollection = collections.find(c => c.name === 'Theme');
+    const bridgeCollection = collections.find(c => c.name === 'Bridge');
     
     if (!baseCollection) {
       figma.notify('No Base collection found. Please generate a theme first.', { error: true });
@@ -593,13 +781,13 @@ function exportThemeAsJson() {
     const toHex = (r: number, g: number, b: number) => `#${r.toString(16).padStart(2,'0')}${g.toString(16).padStart(2,'0')}${b.toString(16).padStart(2,'0')}`;
     const toRgbaString = (r: number, g: number, b: number, a: number) => `rgba(${r}, ${g}, ${b}, ${Number(a.toFixed(2))})`;
     
-    // Export Base: Colors, Typography, Spacing, Corners
-    for (const v of baseVariables) {
-      const parts = v.name.split('/');
+    // Process Base variables by category
+    for (const variable of baseVariables) {
+      const name = variable.name; // e.g., Typography/Display/Font or Typography/Display/Style
+      const parts = name.split('/');
       const root = parts[0];
-      const modeValue = (v.valuesByMode as any)[baseModeId];
-      if (!modeValue && modeValue !== 0) continue;
-      
+      const modeValue = (variable.valuesByMode as any)[baseModeId];
+
       if (root === 'Colors') {
         if (typeof modeValue === 'object' && 'r' in modeValue) {
           const r = Math.round(modeValue.r * 255);
@@ -618,11 +806,25 @@ function exportThemeAsJson() {
           current[key] = { $scopes: ["ALL_SCOPES"], $type: "color", $value: valueStr };
         }
       } else if (root === 'Typography') {
-        exportData.Base.modes.Caldera.Typography[parts[1]] = {
-          $scopes: ["TEXT_CONTENT", "FONT_FAMILY"],
-          $type: "string",
-          $value: modeValue
-        };
+        // Handle Typography/Display/Font and Typography/Display/Style format
+        if (parts.length === 3) {
+          const typeName = parts[1]; // Display, Header, Primary, Data
+          const varType = parts[2]; // Font or Style
+          
+          if (!exportData.Base.modes.Caldera.Typography[typeName]) {
+            exportData.Base.modes.Caldera.Typography[typeName] = {};
+          }
+          
+          const scopes = varType === 'Font' 
+            ? ["TEXT_CONTENT", "FONT_FAMILY"] 
+            : ["FONT_STYLE"];
+          
+          exportData.Base.modes.Caldera.Typography[typeName][varType] = {
+            $scopes: scopes,
+            $type: "string",
+            $value: modeValue
+          };
+        }
       } else if (root === 'Spacing') {
         exportData.Base.modes.Caldera.Spacing[parts[1]] = {
           $scopes: parts[1].startsWith('-') ? ["ALL_SCOPES"] : ["WIDTH_HEIGHT", "GAP"],
@@ -668,6 +870,96 @@ function exportThemeAsJson() {
       }
     }
     
+    // Export Bridge collection (product-specific boolean toggles - no modes)
+    if (bridgeCollection) {
+      const bridgeVars = bridgeCollection.variableIds.map(id => figma.variables.getVariableById(id)).filter(Boolean) as Variable[];
+      const defaultModeId = bridgeCollection.modes[0].modeId;
+      const bridgeBucket: any = {};
+      
+      for (const bv of bridgeVars) {
+        const val = (bv.valuesByMode as any)[defaultModeId];
+        if (val === undefined || val === null) continue;
+        
+        // Bridge variables have different export types based on their purpose
+        let exportValue: any;
+        let exportType: string;
+        let exportScopes: string[];
+        
+        // Determine export format based on variable name
+        if (bv.name.includes('/Padding')) {
+          // Padding variables export as references to Base spacing or direct numbers
+          if (typeof val === 'number') {
+            // Direct number value (like 0)
+            exportValue = val;
+            exportType = "number";
+            exportScopes = ["WIDTH_HEIGHT", "GAP"];
+          } else if (typeof val === 'object' && 'type' in val && (val as any).type === 'VARIABLE_ALIAS') {
+            // Export as reference to Base spacing variable (like Theme variables)
+            const refId = (val as any).id;
+            const refVar = figma.variables.getVariableById(refId);
+            if (refVar) {
+              const refPath = `{${refVar.name.replace(/\//g, '.')}}`;
+              exportValue = refPath;
+              exportType = "number";
+              exportScopes = ["WIDTH_HEIGHT", "GAP"];
+            } else {
+              exportValue = 0;
+              exportType = "number";
+              exportScopes = ["WIDTH_HEIGHT", "GAP"];
+            }
+          } else {
+            exportValue = 0;
+            exportType = "number";
+            exportScopes = ["WIDTH_HEIGHT", "GAP"];
+          }
+        } else {
+          // Background and other variables export as booleans
+          if (typeof val === 'boolean') {
+            exportValue = val;
+          } else if (typeof val === 'number') {
+            exportValue = val > 0;
+          } else if (typeof val === 'object' && 'type' in val && (val as any).type === 'VARIABLE_ALIAS') {
+            exportValue = true;
+          } else if (typeof val === 'object' && 'r' in val) {
+            const a = 'a' in val ? (val as RGBA).a : 1;
+            exportValue = a > 0;
+          } else {
+            exportValue = true;
+          }
+          exportType = "boolean";
+          exportScopes = ["ALL_SCOPES"];
+        }
+        
+        // Create nested structure for the export value
+        const bParts = bv.name.split('/');
+        let current = bridgeBucket;
+        for (let i = 0; i < bParts.length - 1; i++) {
+          const p = bParts[i];
+          if (!current[p]) current[p] = {};
+          current = current[p];
+        }
+        const key = bParts[bParts.length - 1];
+        
+        // Use reference structure for aliases, direct structure for values
+        if (bv.name.includes('/Padding') && typeof val === 'object' && 'type' in val && (val as any).type === 'VARIABLE_ALIAS') {
+          // Padding reference to Base spacing
+          current[key] = {
+            $libraryName: "",
+            $collectionName: "Base",
+            $value: exportValue  // This is the {Base.Spacing.X} reference
+          };
+        } else {
+          // Direct values (booleans, direct numbers)
+          current[key] = {
+            $scopes: exportScopes,
+            $type: exportType,
+            $value: exportValue
+          };
+        }
+      }
+      exportData.Bridge = bridgeBucket;
+    }
+    
     const jsonString = JSON.stringify([exportData], null, 2);
     figma.ui.postMessage({ type: 'export-data', jsonData: jsonString, filename: 'theme-export.json' });
   } catch (e) {
@@ -677,15 +969,28 @@ function exportThemeAsJson() {
 }
 
 // Show UI with larger dimensions to accommodate new inputs
-figma.showUI(__html__, { width: 420, height: 700 });
+figma.showUI(__html__, { width: 420, height: 800 });
 
 // Handle messages from UI
 figma.ui.onmessage = async (msg) => {
+  if (msg.type === 'load-fonts') {
+    // Send available fonts to UI
+    const fonts = await getAvailableFonts();
+    figma.ui.postMessage({
+      type: 'fonts-loaded',
+      fonts: fonts
+    });
+    return;
+  }
+  
   if (msg.type === 'generate-theme') {
-    const { hex, neutralHex, successHex, warningHex, infoHex, errorHex, cornerRadiusLevel } = msg;
+    const { hex, neutralHex, successHex, warningHex, infoHex, failureHex, cornerRadiusLevel, fontOverrides } = msg;
     
     console.log("Generating theme from primary color:", hex);
     console.log("Corner radius level:", cornerRadiusLevel !== undefined ? cornerRadiusLevel : 3);
+    console.log("Font overrides:", fontOverrides);
+    
+    // Remove font loading from here - it's now handled in createBaseCollection
     
     // Define tones for each palette type
     const fullTones = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20, 25, 30, 35, 40, 50, 60, 70, 80, 85, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99];
@@ -695,7 +1000,7 @@ figma.ui.onmessage = async (msg) => {
     const colors: DesignSystemColors = {
       primary: generateTonalPalette(hex, fullTones),
       neutral: {},
-      error: {} // Will be generated in createBaseCollection
+      failure: {} // Will be generated in createBaseCollection
     };
     
     if (neutralHex) {
@@ -721,18 +1026,17 @@ figma.ui.onmessage = async (msg) => {
     // Log generated colors for debugging
     console.log("Generated color palettes:", colors);
     
-    // Create Figma variables - pass all override colors, neutral base, and corner radius level
-    await createFigmaVariables(colors, hex, neutralBase, { neutralHex, successHex, warningHex, infoHex, errorHex }, cornerRadiusLevel !== undefined ? cornerRadiusLevel : 3);
+    // Create Figma variables with font overrides
+    await createFigmaVariables(colors, hex, neutralBase, { neutralHex, successHex, warningHex, infoHex, failureHex }, cornerRadiusLevel !== undefined ? cornerRadiusLevel : 3, fontOverrides || {}, msg.modalBackgroundEnabled, msg.modalPaddingSize);
     
     // Send success message back to UI
     figma.ui.postMessage({ 
-      type: 'generation-complete',
-      colors: colors 
+      type: 'generation-complete'
     });
   }
   
   if (msg.type === 'export-json') {
-    exportThemeAsJson();
+    await exportThemeAsJson();
   }
   
   if (msg.type === 'get-hct-info') {
