@@ -17,6 +17,20 @@
       background: #ffffff;
       min-height: 100vh;
       overflow-y: auto;
+      overflow-x: hidden;
+      max-width: 100%;
+    }
+    
+    .container {
+      max-width: 100%;
+      width: 100%;
+      overflow-x: hidden;
+    }
+    
+    /* Ensure all form elements respect container width */
+    input, select, button {
+      max-width: 100%;
+      box-sizing: border-box;
     }
     
     h1 {
@@ -171,6 +185,8 @@
       padding: 12px 0;
       border-top: 1px solid #e0e0e0;
       z-index: 10;
+      max-width: 100%;
+      overflow: hidden;
     }
     
     button {
@@ -224,7 +240,8 @@
   </style>
 </head>
 <body>
-  <h1>Bridge Theme Generator</h1>
+  <div class="container">
+    <h1>Bridge Theme Generator</h1>
   
   <div class="info-box">
     Generate a complete design system from a primary color. Optionally override neutral and status colors for more control.
@@ -445,6 +462,19 @@
     <div class="description">
       Toggle header background visibility. When unchecked, header background becomes transparent.
     </div>
+
+    <!-- Component Variant Switcher -->
+    <div class="input-group">
+      <label>Component Variant</label>
+      <div class="toggle-container" style="display: flex; align-items: center; gap: 12px;">
+        <input type="checkbox" id="component-variant-toggle">
+        <label for="component-variant-toggle" style="margin: 0; cursor: pointer;">Use Outline variant</label>
+      </div>
+      <div class="description">
+        Switch between Default and Outline component variants. Default is filled, Outline is border-only.
+      </div>
+    </div>
+
   </div>
   </div> <!-- End Theme Settings collapsible content -->
 
@@ -678,6 +708,9 @@
       // Get header background toggle state
       const headerBackgroundEnabled = document.getElementById('header-background-toggle').checked;
       
+      // Get component variant toggle state
+      const componentVariant = document.getElementById('component-variant-toggle').checked ? 'Outline' : 'Default';
+      
       parent.postMessage({
         pluginMessage: {
           type: 'generate-theme',
@@ -692,7 +725,8 @@
           modalBackgroundEnabled: modalBackgroundEnabled,
           modalPaddingSize: modalPaddingSize,
           headerIconsPairingEnabled: headerIconsPairingEnabled,
-          headerBackgroundEnabled: headerBackgroundEnabled
+          headerBackgroundEnabled: headerBackgroundEnabled,
+          componentVariant: componentVariant
         }
       }, '*');
     };
@@ -744,5 +778,6 @@
       }
     };
   </script>
+  </div> <!-- End container -->
 </body>
 </html>

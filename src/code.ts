@@ -646,7 +646,7 @@ async function createThemeCollection(baseCollection: VariableCollection, cornerR
 }
 
 // Create Bridge collection for product-specific variables (no modes needed)
-async function createBridgeCollection(themeCollection: VariableCollection, modalBackgroundEnabled: boolean = true, modalPaddingSize: string = "2", headerIconsPairingEnabled: boolean = true, headerBackgroundEnabled: boolean = false) {
+async function createBridgeCollection(themeCollection: VariableCollection, modalBackgroundEnabled: boolean = true, modalPaddingSize: string = "2", headerIconsPairingEnabled: boolean = true, headerBackgroundEnabled: boolean = false, componentVariant: string = "Default") {
   // Find or create Bridge collection (do NOT delete existing to preserve links)
   let bridgeCollection = figma.variables.getLocalVariableCollections().find(c => c.name === "Bridge");
   if (!bridgeCollection) {
@@ -745,11 +745,16 @@ async function createBridgeCollection(themeCollection: VariableCollection, modal
     headerBgVariable.setValueForMode(defaultModeId, transparentColor);
   }
   
+  // Create Component Variant variable (text variable)
+  console.log("Creating Bridge Component Variant variable...");
+  const componentVariantVariable = upsertBridgeVariable("Components/Variant", "STRING");
+  componentVariantVariable.setValueForMode(defaultModeId, componentVariant);
+  
   return bridgeCollection;
 }
 
 // Main function to create all three collections
-async function createFigmaVariables(colors: DesignSystemColors, primaryHex: string, neutralBaseHex: string, overrides: ColorOverrides = {}, cornerRadiusLevel: number = 3, fontOverrides: FontOverrides = {}, modalBackgroundEnabled: boolean = true, modalPaddingSize: string = "2", headerIconsPairingEnabled: boolean = true, headerBackgroundEnabled: boolean = false) {
+async function createFigmaVariables(colors: DesignSystemColors, primaryHex: string, neutralBaseHex: string, overrides: ColorOverrides = {}, cornerRadiusLevel: number = 3, fontOverrides: FontOverrides = {}, modalBackgroundEnabled: boolean = true, modalPaddingSize: string = "2", headerIconsPairingEnabled: boolean = true, headerBackgroundEnabled: boolean = false, componentVariant: string = "Default") {
   try {
     // Create Base collection first
     console.log("Creating Base collection...");
@@ -761,7 +766,7 @@ async function createFigmaVariables(colors: DesignSystemColors, primaryHex: stri
     
     // Create Bridge collection with product-specific variables
     console.log("Creating Bridge collection...");
-    await createBridgeCollection(themeCollection, modalBackgroundEnabled, modalPaddingSize, headerIconsPairingEnabled, headerBackgroundEnabled);
+    await createBridgeCollection(themeCollection, modalBackgroundEnabled, modalPaddingSize, headerIconsPairingEnabled, headerBackgroundEnabled, componentVariant);
     
     figma.notify("✅ Base, Theme, and Bridge collections created successfully!");
     
@@ -941,6 +946,11 @@ async function exportThemeAsJson() {
             exportType = "number";
             exportScopes = ["WIDTH_HEIGHT", "GAP"];
           }
+        } else if (bv.name.includes('/Variant')) {
+          // Component Variant variables export as strings
+          exportValue = typeof val === 'string' ? val : 'Default';
+          exportType = "string";
+          exportScopes = ["ALL_SCOPES"];
         } else {
           // Background and other variables export as booleans
           if (typeof val === 'boolean') {
@@ -1056,7 +1066,7 @@ figma.ui.onmessage = async (msg) => {
     console.log("Generated color palettes:", colors);
     
     // Create Figma variables with font overrides
-    await createFigmaVariables(colors, hex, neutralBase, { neutralHex, successHex, warningHex, infoHex, failureHex }, cornerRadiusLevel !== undefined ? cornerRadiusLevel : 3, fontOverrides || {}, msg.modalBackgroundEnabled, msg.modalPaddingSize, msg.headerIconsPairingEnabled, msg.headerBackgroundEnabled);
+    await createFigmaVariables(colors, hex, neutralBase, { neutralHex, successHex, warningHex, infoHex, failureHex }, cornerRadiusLevel !== undefined ? cornerRadiusLevel : 3, fontOverrides || {}, msg.modalBackgroundEnabled, msg.modalPaddingSize, msg.headerIconsPairingEnabled, msg.headerBackgroundEnabled, msg.componentVariant);
     
     // Send success message back to UI
     figma.ui.postMessage({ 
