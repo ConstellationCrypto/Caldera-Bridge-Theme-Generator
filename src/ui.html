@@ -386,7 +386,8 @@
   </div>
 </div>
 </div> <!-- End Typography collapsible content -->
-  
+
+
   <h2 class="collapsible-header" onclick="toggleSection('theme-settings')">
     <span>Theme Settings</span>
     <span class="collapse-icon">▼</span>
@@ -411,59 +412,151 @@
   </div>
 
   <div class="input-group">
-    <label>Modal Background</label>
-    <div class="toggle-container" style="display: flex; align-items: center; gap: 12px;">
-      <input type="checkbox" id="modal-background-toggle" checked>
-      <label for="modal-background-toggle" style="margin: 0; cursor: pointer;">Show background</label>
-    </div>
+    <label>Shadow Style</label>
     <div class="description">
-      Toggle modal background visibility. When unchecked, modal background becomes transparent.
+      Customize shadow effects for both light and dark themes. Values represent X, Y, Blur, and Spread in pixels.
+    </div>
+    
+    <!-- Small Shadow -->
+    <div style="margin-top: 16px;">
+      <h4 style="margin: 0 0 8px 0; font-size: 13px; color: #333;">Small Shadow</h4>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+        <div>
+          <label style="font-size: 11px; color: #666; display: block; margin-bottom: 4px;">Drop Shadow (X, Y, Blur)</label>
+          <div style="display: flex; gap: 6px;">
+            <input type="number" id="shadow-sm-drop-x" value="1" min="-20" max="20" style="width: 50px; padding: 6px; border: 1px solid #e0e0e0; border-radius: 4px; font-size: 11px;">
+            <input type="number" id="shadow-sm-drop-y" value="1" min="-20" max="20" style="width: 50px; padding: 6px; border: 1px solid #e0e0e0; border-radius: 4px; font-size: 11px;">
+            <input type="number" id="shadow-sm-drop-blur" value="4" min="0" max="50" style="width: 50px; padding: 6px; border: 1px solid #e0e0e0; border-radius: 4px; font-size: 11px;">
+          </div>
+        </div>
+        <div>
+          <label style="font-size: 11px; color: #666; display: block; margin-bottom: 4px;">Glow (X, Y, Blur, Spread)</label>
+          <div style="display: flex; gap: 6px;">
+            <input type="number" id="shadow-sm-glow-x" value="0" min="-20" max="20" style="width: 40px; padding: 6px; border: 1px solid #e0e0e0; border-radius: 4px; font-size: 11px;">
+            <input type="number" id="shadow-sm-glow-y" value="0" min="-20" max="20" style="width: 40px; padding: 6px; border: 1px solid #e0e0e0; border-radius: 4px; font-size: 11px;">
+            <input type="number" id="shadow-sm-glow-blur" value="4" min="0" max="50" style="width: 40px; padding: 6px; border: 1px solid #e0e0e0; border-radius: 4px; font-size: 11px;">
+            <input type="number" id="shadow-sm-glow-spread" value="2" min="0" max="20" style="width: 40px; padding: 6px; border: 1px solid #e0e0e0; border-radius: 4px; font-size: 11px;">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Base Shadow -->
+    <div style="margin-top: 16px;">
+      <h4 style="margin: 0 0 8px 0; font-size: 13px; color: #333;">Base Shadow</h4>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+        <div>
+          <label style="font-size: 11px; color: #666; display: block; margin-bottom: 4px;">Drop Shadow (X, Y, Blur)</label>
+          <div style="display: flex; gap: 6px;">
+            <input type="number" id="shadow-base-drop-x" value="3" min="-20" max="20" style="width: 50px; padding: 6px; border: 1px solid #e0e0e0; border-radius: 4px; font-size: 11px;">
+            <input type="number" id="shadow-base-drop-y" value="3" min="-20" max="20" style="width: 50px; padding: 6px; border: 1px solid #e0e0e0; border-radius: 4px; font-size: 11px;">
+            <input type="number" id="shadow-base-drop-blur" value="4" min="0" max="50" style="width: 50px; padding: 6px; border: 1px solid #e0e0e0; border-radius: 4px; font-size: 11px;">
+          </div>
+        </div>
+        <div>
+          <label style="font-size: 11px; color: #666; display: block; margin-bottom: 4px;">Glow (X, Y, Blur, Spread)</label>
+          <div style="display: flex; gap: 6px;">
+            <input type="number" id="shadow-base-glow-x" value="0" min="-20" max="20" style="width: 40px; padding: 6px; border: 1px solid #e0e0e0; border-radius: 4px; font-size: 11px;">
+            <input type="number" id="shadow-base-glow-y" value="0" min="-20" max="20" style="width: 40px; padding: 6px; border: 1px solid #e0e0e0; border-radius: 4px; font-size: 11px;">
+            <input type="number" id="shadow-base-glow-blur" value="4" min="0" max="50" style="width: 40px; padding: 6px; border: 1px solid #e0e0e0; border-radius: 4px; font-size: 11px;">
+            <input type="number" id="shadow-base-glow-spread" value="4" min="0" max="20" style="width: 40px; padding: 6px; border: 1px solid #e0e0e0; border-radius: 4px; font-size: 11px;">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Large Shadow -->
+    <div style="margin-top: 16px;">
+      <h4 style="margin: 0 0 8px 0; font-size: 13px; color: #333;">Large Shadow</h4>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+        <div>
+          <label style="font-size: 11px; color: #666; display: block; margin-bottom: 4px;">Drop Shadow (X, Y, Blur)</label>
+          <div style="display: flex; gap: 6px;">
+            <input type="number" id="shadow-lg-drop-x" value="2" min="-20" max="20" style="width: 50px; padding: 6px; border: 1px solid #e0e0e0; border-radius: 4px; font-size: 11px;">
+            <input type="number" id="shadow-lg-drop-y" value="2" min="-20" max="20" style="width: 50px; padding: 6px; border: 1px solid #e0e0e0; border-radius: 4px; font-size: 11px;">
+            <input type="number" id="shadow-lg-drop-blur" value="16" min="0" max="50" style="width: 50px; padding: 6px; border: 1px solid #e0e0e0; border-radius: 4px; font-size: 11px;">
+          </div>
+        </div>
+        <div>
+          <label style="font-size: 11px; color: #666; display: block; margin-bottom: 4px;">Glow (X, Y, Blur, Spread)</label>
+          <div style="display: flex; gap: 6px;">
+            <input type="number" id="shadow-lg-glow-x" value="0" min="-20" max="20" style="width: 40px; padding: 6px; border: 1px solid #e0e0e0; border-radius: 4px; font-size: 11px;">
+            <input type="number" id="shadow-lg-glow-y" value="0" min="-20" max="20" style="width: 40px; padding: 6px; border: 1px solid #e0e0e0; border-radius: 4px; font-size: 11px;">
+            <input type="number" id="shadow-lg-glow-blur" value="16" min="0" max="50" style="width: 40px; padding: 6px; border: 1px solid #e0e0e0; border-radius: 4px; font-size: 11px;">
+            <input type="number" id="shadow-lg-glow-spread" value="8" min="0" max="20" style="width: 40px; padding: 6px; border: 1px solid #e0e0e0; border-radius: 4px; font-size: 11px;">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="description" style="margin-top: 12px;">
+      Available as <code>Theme/Shadow/*</code> variables in your design system.
     </div>
   </div>
 
-  <div class="input-group" id="modal-padding-group">
-    <label>Modal Padding</label>
-    <select id="modal-padding-select" style="width: 100%; padding: 10px; border: 1px solid #e0e0e0; border-radius: 6px;">
-      <option value="2" selected>2 (16px)</option>
-      <option value="1">1 (8px)</option>
-      <option value="3">3 (24px)</option>
-      <option value="4">4 (32px)</option>
-      <option value="5">5 (40px)</option>
-      <option value="6">6 (48px)</option>
-      <option value="7">7 (56px)</option>
-      <option value="8">8 (64px)</option>
-      <option value="9">9 (72px)</option>
-      <option value="10">10 (80px)</option>
-      <option value="11">11 (88px)</option>
-      <option value="12">12 (96px)</option>
-    </select>
-    <div class="description">
-      Select padding size for modal content when background is enabled.
-    </div>
-  </div>
 
-  <div class="input-group">
-    <label>Header/Icons Pairing</label>
-    <div class="toggle-container" style="display: flex; align-items: center; gap: 12px;">
-      <input type="checkbox" id="header-icons-pairing-toggle" checked>
-      <label for="header-icons-pairing-toggle" style="margin: 0; cursor: pointer;">Enable header/icons pairing</label>
-    </div>
-    <div class="description">
-      Toggle whether headers and icons are paired together in the interface.
-    </div>
-  </div>
+  </div> <!-- End Theme Settings collapsible content -->
 
-  <div class="input-group">
-    <label>Header Background</label>
-    <div class="toggle-container" style="display: flex; align-items: center; gap: 12px;">
-      <input type="checkbox" id="header-background-toggle">
-      <label for="header-background-toggle" style="margin: 0; cursor: pointer;">Show header background</label>
-    </div>
-    <div class="description">
-      Toggle header background visibility. When unchecked, header background becomes transparent.
+  <h2 class="collapsible-header" onclick="toggleSection('bridge-settings')">
+    <span>Bridge Settings</span>
+    <span class="collapse-icon">▼</span>
+  </h2>
+  
+  <div class="collapsible-content collapsed" id="bridge-settings-content">
+    <div class="input-group">
+      <label>Modal Background</label>
+      <div class="toggle-container" style="display: flex; align-items: center; gap: 12px;">
+        <input type="checkbox" id="modal-background-toggle" checked>
+        <label for="modal-background-toggle" style="margin: 0; cursor: pointer;">Show background</label>
+      </div>
+      <div class="description">
+        Toggle modal background visibility. When unchecked, modal background becomes transparent.
+      </div>
     </div>
 
-    <!-- Component Variant Switcher -->
+    <div class="input-group" id="modal-padding-group">
+      <label>Modal Padding</label>
+      <select id="modal-padding-select" style="width: 100%; padding: 10px; border: 1px solid #e0e0e0; border-radius: 6px;">
+        <option value="2" selected>2 (16px)</option>
+        <option value="1">1 (8px)</option>
+        <option value="3">3 (24px)</option>
+        <option value="4">4 (32px)</option>
+        <option value="5">5 (40px)</option>
+        <option value="6">6 (48px)</option>
+        <option value="7">7 (56px)</option>
+        <option value="8">8 (64px)</option>
+        <option value="9">9 (72px)</option>
+        <option value="10">10 (80px)</option>
+        <option value="11">11 (88px)</option>
+        <option value="12">12 (96px)</option>
+      </select>
+      <div class="description">
+        Select padding size for modal content when background is enabled.
+      </div>
+    </div>
+
+    <div class="input-group">
+      <label>Header/Icons Pairing</label>
+      <div class="toggle-container" style="display: flex; align-items: center; gap: 12px;">
+        <input type="checkbox" id="header-icons-pairing-toggle" checked>
+        <label for="header-icons-pairing-toggle" style="margin: 0; cursor: pointer;">Enable header/icons pairing</label>
+      </div>
+      <div class="description">
+        Toggle whether headers and icons are paired together in the interface.
+      </div>
+    </div>
+
+    <div class="input-group">
+      <label>Header Background</label>
+      <div class="toggle-container" style="display: flex; align-items: center; gap: 12px;">
+        <input type="checkbox" id="header-background-toggle">
+        <label for="header-background-toggle" style="margin: 0; cursor: pointer;">Show header background</label>
+      </div>
+      <div class="description">
+        Toggle header background visibility. When unchecked, header background becomes transparent.
+      </div>
+    </div>
+
     <div class="input-group">
       <label>Component Variant</label>
       <div class="toggle-container" style="display: flex; align-items: center; gap: 12px;">
@@ -474,9 +567,7 @@
         Switch between Default and Outline component variants. Default is filled, Outline is border-only.
       </div>
     </div>
-
-  </div>
-  </div> <!-- End Theme Settings collapsible content -->
+  </div> <!-- End Bridge Settings collapsible content -->
 
   <div class="button-group">
     <button class="primary" id="generate">Generate Theme</button>
@@ -711,6 +802,52 @@
       // Get component variant toggle state
       const componentVariant = document.getElementById('component-variant-toggle').checked ? 'Outline' : 'Default';
       
+      // Get shadow values
+      const shadowValues = {
+        SM: {
+          Bottom: {
+            X: parseInt(document.getElementById('shadow-sm-drop-x').value) || 1,
+            Y: parseInt(document.getElementById('shadow-sm-drop-y').value) || 1,
+            Blur: parseInt(document.getElementById('shadow-sm-drop-blur').value) || 4,
+            Spread: 0
+          },
+          Around: {
+            X: parseInt(document.getElementById('shadow-sm-glow-x').value) || 0,
+            Y: parseInt(document.getElementById('shadow-sm-glow-y').value) || 0,
+            Blur: parseInt(document.getElementById('shadow-sm-glow-blur').value) || 4,
+            Spread: parseInt(document.getElementById('shadow-sm-glow-spread').value) || 2
+          }
+        },
+        Base: {
+          Bottom: {
+            X: parseInt(document.getElementById('shadow-base-drop-x').value) || 3,
+            Y: parseInt(document.getElementById('shadow-base-drop-y').value) || 3,
+            Blur: parseInt(document.getElementById('shadow-base-drop-blur').value) || 4,
+            Spread: 0
+          },
+          Around: {
+            X: parseInt(document.getElementById('shadow-base-glow-x').value) || 0,
+            Y: parseInt(document.getElementById('shadow-base-glow-y').value) || 0,
+            Blur: parseInt(document.getElementById('shadow-base-glow-blur').value) || 4,
+            Spread: parseInt(document.getElementById('shadow-base-glow-spread').value) || 4
+          }
+        },
+        LG: {
+          Bottom: {
+            X: parseInt(document.getElementById('shadow-lg-drop-x').value) || 2,
+            Y: parseInt(document.getElementById('shadow-lg-drop-y').value) || 2,
+            Blur: parseInt(document.getElementById('shadow-lg-drop-blur').value) || 16,
+            Spread: 0
+          },
+          Around: {
+            X: parseInt(document.getElementById('shadow-lg-glow-x').value) || 0,
+            Y: parseInt(document.getElementById('shadow-lg-glow-y').value) || 0,
+            Blur: parseInt(document.getElementById('shadow-lg-glow-blur').value) || 16,
+            Spread: parseInt(document.getElementById('shadow-lg-glow-spread').value) || 8
+          }
+        }
+      };
+      
       parent.postMessage({
         pluginMessage: {
           type: 'generate-theme',
@@ -726,7 +863,8 @@
           modalPaddingSize: modalPaddingSize,
           headerIconsPairingEnabled: headerIconsPairingEnabled,
           headerBackgroundEnabled: headerBackgroundEnabled,
-          componentVariant: componentVariant
+          componentVariant: componentVariant,
+          shadowValues: shadowValues
         }
       }, '*');
     };

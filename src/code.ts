@@ -36,6 +36,29 @@ interface FontOverrides {
   dataFont?: { family: string; style: string };
 }
 
+// Shadow configuration interfaces
+interface ShadowConfig {
+  X: number;
+  Y: number;
+  Blur: number;
+  Spread: number;
+}
+
+interface ShadowValues {
+  SM: {
+    Bottom: ShadowConfig;
+    Around: ShadowConfig;
+  };
+  Base: {
+    Bottom: ShadowConfig;
+    Around: ShadowConfig;
+  };
+  LG: {
+    Bottom: ShadowConfig;
+    Around: ShadowConfig;
+  };
+}
+
 // Convert hex to HSL
 function hexToHsl(hex: string): { h: number; s: number; l: number } {
   const argb = argbFromHex(hex);
@@ -229,6 +252,17 @@ async function createBaseCollection(colors: DesignSystemColors, primaryHex: stri
     variable.setValueForMode(modeId, color);
     return variable;
   }
+
+  // Helper to create or update a FLOAT variable by name
+  function createFloatVariable(path: string, value: number, scopes: VariableScope[] = ["EFFECT_FLOAT"]): Variable {
+    const existing = baseCollection!.variableIds
+      .map(id => figma.variables.getVariableById(id))
+      .find(v => v && v.name === path);
+    const variable = existing || figma.variables.createVariable(path, baseCollection!, "FLOAT");
+    variable.setValueForMode(modeId, value);
+    variable.scopes = scopes;
+    return variable;
+  }
   
 
   
@@ -394,7 +428,8 @@ async function createBaseCollection(colors: DesignSystemColors, primaryHex: stri
     spacingVar.setValueForMode(modeId, value);
     spacingVar.scopes = name.startsWith('-') ? ['ALL_SCOPES'] : ['WIDTH_HEIGHT', 'GAP'];
   }
-  
+
+
   // Load fonts and create typography variables
   console.log("Loading fonts for typography variables...");
   
@@ -477,7 +512,7 @@ async function createBaseCollection(colors: DesignSystemColors, primaryHex: stri
 }
 
 // Create Theme collection with Light and Dark modes
-async function createThemeCollection(baseCollection: VariableCollection, cornerRadiusLevel: number = 3, modalBackgroundEnabled: boolean = true) {
+async function createThemeCollection(baseCollection: VariableCollection, cornerRadiusLevel: number = 3, shadowValues?: ShadowValues) {
   // Find or create Theme collection (do NOT delete existing to preserve links)
   let themeCollection = figma.variables.getLocalVariableCollections().find(c => c.name === "Theme");
   if (!themeCollection) {
@@ -642,6 +677,56 @@ async function createThemeCollection(baseCollection: VariableCollection, cornerR
   // Create Brand variable
   createAliasVariable("Brand", "Colors/Primary/Base", "Colors/Primary/Base");
   
+  // Create Shadow variables
+  console.log("Creating shadow variables in Theme collection...");
+  
+  // Create shadow color variable - references Neutral/Alpha/10 in both modes
+  createAliasVariable("Shadow/Color", "Colors/Neutral/Alpha/10", "Colors/White/10");
+
+  // Use custom shadow values or fallback to defaults
+  const shadowConfigs = shadowValues || {
+    'SM': {
+      'Bottom': { X: 1, Y: 1, Blur: 4, Spread: 0 },
+      'Around': { X: 0, Y: 0, Blur: 4, Spread: 2 }
+    },
+    'Base': {
+      'Bottom': { X: 3, Y: 3, Blur: 4, Spread: 0 },
+      'Around': { X: 0, Y: 0, Blur: 4, Spread: 4 }
+    },
+    'LG': {
+      'Bottom': { X: 2, Y: 2, Blur: 16, Spread: 0 },
+      'Around': { X: 0, Y: 0, Blur: 16, Spread: 8 }
+    }
+  };
+
+  // Create shadow FLOAT variables for each size and type (same values for both light/dark)
+  for (const [size, types] of Object.entries(shadowConfigs)) {
+    for (const [type, values] of Object.entries(types)) {
+      const shadowConfig = values as ShadowConfig;
+      const xVar = upsertVariable(`Shadow/${size}/${type}/X`, "FLOAT");
+      const yVar = upsertVariable(`Shadow/${size}/${type}/Y`, "FLOAT");
+      const blurVar = upsertVariable(`Shadow/${size}/${type}/Blur`, "FLOAT");
+      const spreadVar = upsertVariable(`Shadow/${size}/${type}/Spread`, "FLOAT");
+      
+      // Set same values for both light and dark modes
+      xVar.setValueForMode(lightModeId, shadowConfig.X);
+      xVar.setValueForMode(darkModeId, shadowConfig.X);
+      xVar.scopes = ['EFFECT_FLOAT'];
+      
+      yVar.setValueForMode(lightModeId, shadowConfig.Y);
+      yVar.setValueForMode(darkModeId, shadowConfig.Y);
+      yVar.scopes = ['EFFECT_FLOAT'];
+      
+      blurVar.setValueForMode(lightModeId, shadowConfig.Blur);
+      blurVar.setValueForMode(darkModeId, shadowConfig.Blur);
+      blurVar.scopes = ['EFFECT_FLOAT'];
+      
+      spreadVar.setValueForMode(lightModeId, shadowConfig.Spread);
+      spreadVar.setValueForMode(darkModeId, shadowConfig.Spread);
+      spreadVar.scopes = ['EFFECT_FLOAT'];
+    }
+  }
+  
   return themeCollection;
 }
 
@@ -754,7 +839,7 @@ async function createBridgeCollection(themeCollection: VariableCollection, modal
 }
 
 // Main function to create all three collections
-async function createFigmaVariables(colors: DesignSystemColors, primaryHex: string, neutralBaseHex: string, overrides: ColorOverrides = {}, cornerRadiusLevel: number = 3, fontOverrides: FontOverrides = {}, modalBackgroundEnabled: boolean = true, modalPaddingSize: string = "2", headerIconsPairingEnabled: boolean = true, headerBackgroundEnabled: boolean = false, componentVariant: string = "Default") {
+async function createFigmaVariables(colors: DesignSystemColors, primaryHex: string, neutralBaseHex: string, overrides: ColorOverrides = {}, cornerRadiusLevel: number = 3, fontOverrides: FontOverrides = {}, modalBackgroundEnabled: boolean = true, modalPaddingSize: string = "2", headerIconsPairingEnabled: boolean = true, headerBackgroundEnabled: boolean = false, componentVariant: string = "Default", shadowValues?: ShadowValues) {
   try {
     // Create Base collection first
     console.log("Creating Base collection...");
@@ -762,7 +847,7 @@ async function createFigmaVariables(colors: DesignSystemColors, primaryHex: stri
     
     // Create Theme collection with references to Base
     console.log("Creating Theme collection...");
-    const themeCollection = await createThemeCollection(baseCollection, cornerRadiusLevel);
+    const themeCollection = await createThemeCollection(baseCollection, cornerRadiusLevel, shadowValues);
     
     // Create Bridge collection with product-specific variables
     console.log("Creating Bridge collection...");
@@ -884,12 +969,6 @@ async function exportThemeAsJson() {
         
         for (const tv of themeVars) {
           const val = (tv.valuesByMode as any)[themeModeId];
-          if (!(val && typeof val === 'object' && 'type' in val && (val as any).type === 'VARIABLE_ALIAS')) continue;
-          const refId = (val as any).id;
-          const refVar = figma.variables.getVariableById(refId);
-          if (!refVar) continue;
-          const refPath = `{${refVar.name.replace(/\//g, '.')}}`;
-          
           const tParts = tv.name.split('/');
           let current = modeBucket;
           for (let i = 0; i < tParts.length - 1; i++) {
@@ -898,7 +977,23 @@ async function exportThemeAsJson() {
             current = current[p];
           }
           const key = tParts[tParts.length - 1];
-          current[key] = { $libraryName: "", $collectionName: "Base", $value: refPath };
+          
+          // Handle VARIABLE_ALIAS (references to Base)
+          if (val && typeof val === 'object' && 'type' in val && (val as any).type === 'VARIABLE_ALIAS') {
+            const refId = (val as any).id;
+            const refVar = figma.variables.getVariableById(refId);
+            if (!refVar) continue;
+            const refPath = `{${refVar.name.replace(/\//g, '.')}}`;
+            current[key] = { $libraryName: "", $collectionName: "Base", $value: refPath };
+          }
+          // Handle direct values (like Shadow FLOAT variables)
+          else if (tv.name.startsWith('Shadow/') && typeof val === 'number') {
+            current[key] = {
+              $scopes: ["EFFECT_FLOAT"],
+              $type: "float",
+              $value: val
+            };
+          }
         }
         exportData.Theme.modes[mode.name] = modeBucket;
       }
@@ -1023,7 +1118,7 @@ figma.ui.onmessage = async (msg) => {
   }
   
   if (msg.type === 'generate-theme') {
-    const { hex, neutralHex, successHex, warningHex, infoHex, failureHex, cornerRadiusLevel, fontOverrides } = msg;
+    const { hex, neutralHex, successHex, warningHex, infoHex, failureHex, cornerRadiusLevel, fontOverrides, shadowValues } = msg;
     
     console.log("Generating theme from primary color:", hex);
     console.log("Corner radius level:", cornerRadiusLevel !== undefined ? cornerRadiusLevel : 3);
@@ -1066,7 +1161,7 @@ figma.ui.onmessage = async (msg) => {
     console.log("Generated color palettes:", colors);
     
     // Create Figma variables with font overrides
-    await createFigmaVariables(colors, hex, neutralBase, { neutralHex, successHex, warningHex, infoHex, failureHex }, cornerRadiusLevel !== undefined ? cornerRadiusLevel : 3, fontOverrides || {}, msg.modalBackgroundEnabled, msg.modalPaddingSize, msg.headerIconsPairingEnabled, msg.headerBackgroundEnabled, msg.componentVariant);
+    await createFigmaVariables(colors, hex, neutralBase, { neutralHex, successHex, warningHex, infoHex, failureHex }, cornerRadiusLevel !== undefined ? cornerRadiusLevel : 3, fontOverrides || {}, msg.modalBackgroundEnabled, msg.modalPaddingSize, msg.headerIconsPairingEnabled, msg.headerBackgroundEnabled, msg.componentVariant, shadowValues);
     
     // Send success message back to UI
     figma.ui.postMessage({ 
